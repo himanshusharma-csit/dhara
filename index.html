@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DHARA · Analytics Dashboard</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="dashboard.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <!-- SheetJS — required for client-side .xlsx parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     BATCH SELECTOR OVERLAY
+     ════════════════════════════════════════════════════════ -->
+<div class="batch-overlay" id="batchOverlay">
+  <div class="batch-modal">
+
+    <div class="batch-modal-logo">🧠</div>
+    <h2>DHARA Analytics Dashboard</h2>
+    <p class="modal-sub">
+      Select a batch configuration to load. The pre-loaded Batch-256 is always available.
+      To analyse a different batch, pick its 5 data files using the button below.
+    </p>
+
+    <!-- Required file reference -->
+    <div class="batch-folder-info">
+      <div>
+        <div class="folder-label">Required files per batch folder</div>
+        <div class="batch-files-list">
+          <span class="batch-file-tag">TrainingLogs.xlsx</span>
+          <span class="batch-file-tag">PredictionSplit.xlsx</span>
+          <span class="batch-file-tag">TestResults.xlsx</span>
+          <span class="batch-file-tag">TestCaptions.txt</span>
+          <span class="batch-file-tag">GeneratedPredictions.txt</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="batch-divider"></div>
+
+    <!-- Batch options list -->
+    <div class="batch-list" id="batchList"></div>
+
+    <!-- File-validation feedback -->
+    <div id="fileValidationWrap" style="margin-bottom:16px"></div>
+
+    <!-- Loading spinner (hidden until parse starts) -->
+    <div class="load-state" id="loadState" style="display:none">
+      <div class="spinner"></div>
+      <span class="load-msg">Parsing files…</span>
+    </div>
+
+    <!-- Footer -->
+    <div class="batch-modal-footer">
+      <button
+        style="padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid var(--border);background:var(--surface2);cursor:pointer;color:var(--blue);font-family:'Outfit',sans-serif;transition:all .15s;white-space:nowrap;flex-shrink:0"
+        onclick="openFilePicker()"
+        onmouseover="this.style.background='var(--blue-l)'"
+        onmouseout="this.style.background='var(--surface2)'"
+      >
+        📂 Load Batch Folder
+      </button>
+      <span class="batch-modal-note">All processing is local — no data leaves your browser.</span>
+      <button class="btn-primary" id="btnLoadBatch" onclick="loadBatch()" style="white-space:nowrap;flex-shrink:0">
+        Open Dashboard →
+      </button>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SIDEBAR
+     ════════════════════════════════════════════════════════ -->
+<aside class="sidebar">
+
+  <div class="sb-header">
+    <div class="sb-logo">🧠</div>
+    <div>
+      <div class="sb-title">DHARA</div>
+      <div class="sb-sub">Analytics v2.1</div>
+    </div>
+  </div>
+
+  <nav class="sb-nav">
+    <div class="nav-section">Overview</div>
+    <button class="nav-item active" onclick="showPage('dashboard',this)">
+      <span class="nav-icon">📊</span> Dashboard
+    </button>
+
+    <div class="nav-section">Analysis</div>
+    <button class="nav-item" onclick="showPage('training',this)">
+      <span class="nav-icon">📈</span> Training Logs
+    </button>
+    <button class="nav-item" onclick="showPage('evaluation',this)">
+      <span class="nav-icon">🎯</span> Evaluation
+    </button>
+    <button class="nav-item" onclick="showPage('captions',this)">
+      <span class="nav-icon">🔤</span> Captions
+    </button>
+    <button class="nav-item" onclick="showPage('advanced',this)">
+      <span class="nav-icon">🔬</span> Advanced Analytics
+    </button>
+
+    <div class="nav-section">Project</div>
+    <button class="nav-item" onclick="showPage('insights',this)">
+      <span class="nav-icon">💡</span> Insights
+    </button>
+  </nav>
+
+  <!-- User info -->
+  <div class="sb-bottom">
+    <div class="sb-user">
+      <div class="user-av">HS</div>
+      <div>
+        <a
+          class="user-name-link"
+          href="https://www.linkedin.com/in/dr-himanshusharma/"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="View LinkedIn Profile"
+        >Dr. Himanshu Sharma</a>
+        <div class="user-role">Researcher · NLP &amp; Vision</div>
+      </div>
+    </div>
+  </div>
+
+</aside>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN CONTENT
+     ════════════════════════════════════════════════════════ -->
+<main class="main">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="pageTitle">Dashboard — Overview</div>
+      <div class="topbar-sub" id="batchLabel">Loading…</div>
+    </div>
+    <div class="topbar-right">
+      <div class="tbadge">
+        <span class="dot"></span>
+        <span id="checkpointBadge">Best Checkpoint</span>
+      </div>
+      <button class="tb-switch"
+        onclick="document.getElementById('batchOverlay').style.display='flex'">
+        Switch Batch
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ─── DASHBOARD PAGE ─── -->
+    <div class="page active" id="page-dashboard">
+
+      <div class="kpi-grid" id="kpiGrid"></div>
+
+      <div class="grid-7-5">
+        <div class="card">
+          <div class="section-title">
+            <h2>Training Loss Curve</h2>
+            <span class="pill pill-blue">Full Training</span>
+          </div>
+          <canvas id="epochLossChart" height="100"></canvas>
+        </div>
+        <div class="card">
+          <div class="section-title">
+            <h2>Test vs Validation</h2>
+            <span class="pill pill-green">Best Epoch</span>
+          </div>
+          <canvas id="barCompChart" height="100"></canvas>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="card anim-card">
+          <div class="section-title">
+            <h2>BLEU-1 &amp; BLEU-2</h2>
+            <span class="pill pill-blue">High-order</span>
+          </div>
+          <canvas id="bleuSmallChart12" height="140"></canvas>
+        </div>
+        <div class="card anim-card">
+          <div class="section-title">
+            <h2>BLEU-3 &amp; BLEU-4</h2>
+            <span class="pill pill-orange">Low-order</span>
+          </div>
+          <canvas id="bleuSmallChart34" height="140"></canvas>
+        </div>
+        <div class="card anim-card">
+          <div class="section-title">
+            <h2>Performance Radar</h2>
+            <span class="pill pill-purple">Test vs Val</span>
+          </div>
+          <canvas id="radarSmallChart" height="140"></canvas>
+        </div>
+      </div>
+
+    </div><!-- /page-dashboard -->
+
+
+    <!-- ─── TRAINING PAGE ─── -->
+    <div class="page" id="page-training">
+
+      <div class="grid-7-5">
+        <div class="card mb-18">
+          <div class="section-title">
+            <h2>Epoch Loss Trajectory</h2>
+            <span class="pill pill-blue">Full Training</span>
+          </div>
+          <canvas id="epochLossFullChart" height="95"></canvas>
+        </div>
+        <div class="card mb-18">
+          <div class="section-title"><h2>Loss Convergence</h2></div>
+          <div id="lossProgressBars" class="progs" style="margin-bottom:16px"></div>
+          <div class="section-title" style="margin-bottom:8px">
+            <h2 style="font-size:13px">Training Summary</h2>
+          </div>
+          <div id="trainingStatsTable"></div>
+        </div>
+      </div>
+
+      <div class="card mb-18">
+        <div class="section-title">
+          <h2>Batch-Level Loss Inspector</h2>
+          <span class="pill pill-orange">Intra-Epoch View</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-lbl">Select Epoch:</span>
+          <input type="range" id="batchEpochSlider" min="0" max="39" value="0">
+          <span class="slider-val" id="batchEpochVal">Epoch 0</span>
+        </div>
+        <canvas id="batchLossChart" height="85"></canvas>
+      </div>
+
+      <div class="card mb-18">
+        <div class="section-title">
+          <h2>Caption Length Evolution</h2>
+          <span class="pill pill-purple">Mean ± σ Per Epoch</span>
+        </div>
+        <canvas id="capLenChart" height="80"></canvas>
+      </div>
+
+    </div><!-- /page-training -->
+
+
+    <!-- ─── EVALUATION PAGE ─── -->
+    <div class="page" id="page-evaluation">
+
+      <div class="card mb-18">
+        <div class="section-title">
+          <h2>All Validation Metrics</h2>
+          <span class="pill pill-blue">Per Epoch</span>
+        </div>
+        <div class="tabs" id="evalMetricTabs">
+          <button class="tab active" data-target="evalBLEU">BLEU 1–4</button>
+          <button class="tab" data-target="evalMeteorCider">METEOR &amp; CIDEr</button>
+          <button class="tab" data-target="evalEpochInspector">Epoch Inspector</button>
+        </div>
+        <div id="evalBLEU" data-tab-pane>
+          <div class="grid-2" style="margin-bottom:0">
+            <div>
+              <div style="font-size:12px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">BLEU-1 &amp; BLEU-2 — Validation</div>
+              <canvas id="bleuFullChart12" height="130"></canvas>
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">BLEU-3 &amp; BLEU-4 — Validation</div>
+              <canvas id="bleuFullChart34" height="130"></canvas>
+            </div>
+          </div>
+        </div>
+        <div id="evalMeteorCider" data-tab-pane style="display:none">
+          <canvas id="meteorCiderChart" height="100"></canvas>
+        </div>
+        <div id="evalEpochInspector" data-tab-pane style="display:none">
+          <div class="slider-row">
+            <span class="slider-lbl">Epoch:</span>
+            <input type="range" id="evalEpochSlider" min="0" max="39" value="17">
+            <span class="slider-val" id="evalEpochVal">Epoch 17</span>
+          </div>
+          <div class="chips" id="evalEpochChips"></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card mb-18">
+          <div class="section-title">
+            <h2>Loss vs BLEU-4 Correlation</h2>
+            <span class="pill pill-orange">Scatter</span>
+          </div>
+          <canvas id="scatterChart" height="185"></canvas>
+        </div>
+        <div class="card mb-18">
+          <div class="section-title">
+            <h2>Test Result Summary</h2>
+            <span class="pill pill-green">Best Checkpoint</span>
+          </div>
+          <canvas id="testBarChart" height="185"></canvas>
+        </div>
+      </div>
+
+      <div class="card mb-18">
+        <div class="section-title"><h2>Top 10 Epochs by BLEU-4</h2></div>
+        <div style="overflow-x:auto">
+          <table class="stat-table" id="topEpochsTable"></table>
+        </div>
+      </div>
+
+    </div><!-- /page-evaluation -->
+
+
+    <!-- ─── CAPTIONS PAGE ─── -->
+    <div class="page" id="page-captions">
+
+      <div class="card mb-18">
+        <div class="section-title">
+          <h2>Caption Quality Evolution</h2>
+          <span class="pill pill-blue">Across Epochs</span>
+        </div>
+        <div class="evo-img-tabs" id="evoImgTabs"></div>
+        <div class="evo-timeline" id="evoTimeline"></div>
+      </div>
+
+      <div class="card mb-18">
+        <div class="section-title">
+          <h2>Generated Hindi Captions — Test Set</h2>
+          <span class="pill pill-green">Best Checkpoint</span>
+        </div>
+        <div class="cap-grid" id="capGrid"></div>
+      </div>
+
+      <div class="card mb-18">
+        <div class="section-title">
+          <h2>Caption Length Distribution</h2>
+          <span class="pill pill-purple">Key Epochs · Histogram</span>
+        </div>
+        <canvas id="capLenDistChart" height="90"></canvas>
+      </div>
+
+    </div><!-- /page-captions -->
+
+
+    <!-- ─── ADVANCED ANALYTICS PAGE ─── -->
+    <div class="page" id="page-advanced">
+
+      <div class="grid-2">
+        <div class="card mb-18">
+          <div class="section-title">
+            <h2>Metric Correlation Heatmap</h2>
+            <span class="pill pill-blue">Pearson r</span>
+          </div>
+          <canvas id="corrHeatmapChart" height="210"></canvas>
+        </div>
+        <div class="card mb-18">
+          <div class="section-title">
+            <h2>Caption Length — KDE</h2>
+            <span class="pill pill-purple">Kernel Density</span>
+          </div>
+          <canvas id="kdeChart" height="210"></canvas>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card mb-18">
+          <div class="section-title">
+            <h2>BLEU-4 Distribution</h2>
+            <span class="pill pill-orange">Validation · Q1/Q3 Bands</span>
+          </div>
+          <canvas id="bleu4DistChart" height="200"></canvas>
+        </div>
+        <div class="card mb-18">
+          <div class="section-title">
+            <h2>Loss vs Metrics — Multi-Scatter</h2>
+            <span class="pill pill-green">All Key Metrics</span>
+          </div>
+          <canvas id="multiScatterChart" height="200"></canvas>
+        </div>
+      </div>
+
+      <div class="card mb-18">
+        <div class="section-title">
+          <h2>Epoch × Metric Heatmap</h2>
+          <span class="pill pill-cyan">Normalised 0 → 1</span>
+        </div>
+        <div class="heatmap-wrap" id="metricHeatmapWrap"></div>
+      </div>
+
+    </div><!-- /page-advanced -->
+
+
+    <!-- ─── INSIGHTS PAGE ─── -->
+    <div class="page" id="page-insights">
+
+      <div class="insight-grid" id="insightGrid"></div>
+
+      <div class="card mb-18">
+        <div class="section-title">
+          <h2>Model Architecture Summary</h2>
+          <span class="pill pill-blue">DHARA Framework</span>
+        </div>
+        <div id="archSummary"></div>
+      </div>
+
+    </div><!-- /page-insights -->
+
+  </div><!-- /content -->
+</main><!-- /main -->
+
+<!-- Dashboard Logic (must come after Chart.js + SheetJS) -->
+<script src="dashboard.js"></script>
+
+</body>
+</html>
