@@ -415,30 +415,7 @@ const PAGE_TITLES = {
   insights   : 'Key Insights & Model Info'
 };
 
-function showPage(name, btn) {
-  const prev = document.querySelector('.page.active');
-  if (prev) prev.classList.remove('active');
-
-  const next = document.getElementById('page-' + name);
-  // Re-trigger animations by briefly removing and re-adding active
-  next.classList.remove('active');
-  // Force reflow
-  void next.offsetWidth;
-  next.classList.add('active');
-
-  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-  if (btn) {
-    btn.classList.add('active');
-    // Animate icon
-    const icon = btn.querySelector('.nav-icon');
-    if (icon) {
-      icon.style.transform = 'scale(1.35)';
-      setTimeout(() => { icon.style.transform = ''; }, 220);
-    }
-  }
-  document.getElementById('pageTitle').textContent = PAGE_TITLES[name] || name;
-}
-window.showPage = showPage;
+/* showPage defined in mobile section below */
 
 /* ──────────────────────────────────────────────────────────
    8.  TAB MANAGER
@@ -983,6 +960,69 @@ function renderAll() {
 /* ──────────────────────────────────────────────────────────
    17. BOOTSTRAP
    ────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────
+   18. MOBILE SIDEBAR TOGGLE
+   ────────────────────────────────────────────────────────── */
+function toggleSidebar() {
+  const sidebar  = document.querySelector('.sidebar');
+  const overlay  = document.getElementById('sidebarOverlay');
+  const hamburger = document.getElementById('hamburgerBtn');
+  const isOpen   = sidebar.classList.contains('open');
+  if (isOpen) {
+    closeSidebar();
+  } else {
+    sidebar.classList.add('open');
+    overlay.classList.add('visible');
+    hamburger.classList.add('open');
+    document.body.style.overflow = 'hidden'; // prevent bg scroll
+  }
+}
+window.toggleSidebar = toggleSidebar;
+
+function closeSidebar() {
+  const sidebar   = document.querySelector('.sidebar');
+  const overlay   = document.getElementById('sidebarOverlay');
+  const hamburger = document.getElementById('hamburgerBtn');
+  sidebar.classList.remove('open');
+  overlay.classList.remove('visible');
+  hamburger.classList.remove('open');
+  document.body.style.overflow = '';
+}
+window.closeSidebar = closeSidebar;
+
+/* Close sidebar when a nav item is clicked on mobile */
+function showPage(name, btn) {
+  // Close sidebar on mobile after navigation
+  if (window.innerWidth <= 900) closeSidebar();
+  const prev = document.querySelector('.page.active');
+  if (prev) prev.classList.remove('active');
+  const next = document.getElementById('page-' + name);
+  next.classList.remove('active');
+  void next.offsetWidth;
+  next.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  if (btn) {
+    btn.classList.add('active');
+    const icon = btn.querySelector('.nav-icon');
+    if (icon) {
+      icon.style.transform = 'scale(1.35)';
+      setTimeout(() => { icon.style.transform = ''; }, 220);
+    }
+  }
+  document.getElementById('pageTitle').textContent = PAGE_TITLES[name] || name;
+}
+window.showPage = showPage;
+
+/* Close sidebar on Escape key */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSidebar();
+});
+
+/* Close sidebar if window resized to desktop */
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 900) closeSidebar();
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   initBatchModal();
   initTabs();

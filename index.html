@@ -143,14 +143,19 @@
 
   <!-- Top bar -->
   <div class="topbar">
-    <div>
-      <div class="topbar-title" id="pageTitle">Dashboard — Overview</div>
-      <div class="topbar-sub" id="batchLabel">Loading…</div>
+    <div class="topbar-left-group">
+      <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div>
+        <div class="topbar-title" id="pageTitle">Dashboard — Overview</div>
+        <div class="topbar-sub" id="batchLabel">Loading…</div>
+      </div>
     </div>
     <div class="topbar-right">
       <div class="tbadge">
         <span class="dot"></span>
-        <span id="checkpointBadge">Best Checkpoint</span>
+        <span id="checkpointBadge" class="badge-text">Best Checkpoint</span>
       </div>
       <button class="tb-switch"
         onclick="document.getElementById('batchOverlay').style.display='flex'">
@@ -416,6 +421,9 @@
 
   </div><!-- /content -->
 </main><!-- /main -->
+
+<!-- Sidebar overlay for mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
 <!-- Dashboard Logic (must come after Chart.js + SheetJS) -->
 <script src="dashboard.js"></script>

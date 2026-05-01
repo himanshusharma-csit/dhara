@@ -798,3 +798,199 @@ canvas { width: 100% !important; display: block; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================
+   MOBILE RESPONSIVENESS
+   ============================================================ */
+
+/* ── Hamburger button ── */
+.hamburger {
+  display: none;
+  flex-direction: column; justify-content: center; align-items: center;
+  gap: 5px;
+  width: 38px; height: 38px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface2);
+  cursor: pointer; flex-shrink: 0; padding: 0;
+  transition: background .15s, border-color .15s;
+}
+.hamburger:hover { background: var(--blue-l); border-color: var(--blue); }
+.hamburger span {
+  display: block; width: 18px; height: 2px;
+  background: var(--text); border-radius: 2px;
+  transition: all .25s cubic-bezier(.4,0,.2,1);
+}
+/* Animated X when open */
+.hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ── Topbar left group (hamburger + title) ── */
+.topbar-left-group {
+  display: flex; align-items: center; gap: 12px; min-width: 0;
+}
+
+/* ── Sidebar overlay (mobile backdrop) ── */
+.sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 199;
+  background: rgba(15,18,40,0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: fadeIn .2s ease;
+}
+.sidebar-overlay.visible { display: block; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+/* ── Sidebar mobile slide-in ── */
+.sidebar {
+  transition: transform .28s cubic-bezier(.4,0,.2,1);
+}
+
+/* ============================================================
+   BREAKPOINT: TABLET (≤ 900px)
+   ============================================================ */
+@media (max-width: 900px) {
+
+  /* Show hamburger */
+  .hamburger { display: flex; }
+
+  /* Sidebar slides off-screen by default */
+  .sidebar {
+    transform: translateX(-100%);
+    z-index: 300;
+    box-shadow: none;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 32px rgba(0,0,0,0.18);
+  }
+
+  /* Main fills full width */
+  .main { margin-left: 0; }
+
+  /* Topbar adjustments */
+  .topbar { padding: 0 14px; }
+  .topbar-sub { display: none; } /* hide sub on small screens */
+  .tbadge { display: none; }     /* hide status badge on mobile */
+
+  /* Content padding tighter */
+  .content { padding: 16px 14px 60px; }
+
+  /* KPI: 2 columns on tablet */
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+  /* All grids stack */
+  .grid-2, .grid-3, .grid-7-5, .grid-5-7 { grid-template-columns: 1fr; gap: 14px; }
+
+  /* Tabs scroll horizontally */
+  .tabs { overflow-x: auto; width: 100%; }
+
+  /* Sliders full width */
+  input[type=range] { width: 100%; min-width: 140px; }
+  .slider-row { gap: 8px; }
+
+  /* Batch modal */
+  .batch-modal { padding: 24px 20px; border-radius: 16px; }
+  .batch-modal h2 { font-size: 18px; }
+  .batch-modal-footer { flex-direction: column; align-items: stretch; gap: 10px; }
+  .batch-modal-footer > button { width: 100%; justify-content: center; }
+  .batch-modal-note { text-align: center; }
+
+  /* Cards slightly tighter */
+  .card { padding: 16px; }
+  .kpi  { padding: 14px; gap: 12px; }
+  .kpi-val { font-size: 20px; }
+
+  /* Section title wraps */
+  .section-title { flex-wrap: wrap; gap: 8px; }
+
+  /* Caption grid: 1 col */
+  .cap-grid { grid-template-columns: 1fr; }
+
+  /* Insight grid: 2 col on tablet */
+  .insight-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ============================================================
+   BREAKPOINT: MOBILE (≤ 600px)
+   ============================================================ */
+@media (max-width: 600px) {
+
+  /* KPI: single column */
+  .kpi-grid { grid-template-columns: 1fr; gap: 10px; }
+
+  /* KPI card horizontal compact */
+  .kpi { padding: 12px 14px; gap: 12px; }
+  .kpi-ico { width: 38px; height: 38px; font-size: 17px; }
+  .kpi-val { font-size: 22px; }
+
+  /* Insight grid: 1 col */
+  .insight-grid { grid-template-columns: 1fr; }
+
+  /* Topbar */
+  .topbar { padding: 0 12px; }
+  .topbar-title { font-size: 13px; }
+  .tb-switch { font-size: 11px; padding: 5px 10px; }
+
+  /* Content */
+  .content { padding: 12px 10px 60px; }
+
+  /* Cards */
+  .card { padding: 14px 12px; border-radius: 12px; }
+
+  /* Chips: 2 col */
+  .chips { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .chip-v { font-size: 17px; }
+
+  /* Tabs: full width, smaller text */
+  .tabs { width: 100%; overflow-x: auto; }
+  .tab  { padding: 6px 10px; font-size: 11px; }
+
+  /* Sliders */
+  .slider-row { flex-direction: column; align-items: flex-start; }
+  input[type=range] { width: 100%; }
+
+  /* Section title */
+  .section-title h2 { font-size: 13px; }
+  .pill { font-size: 9px; padding: 2px 7px; }
+
+  /* Batch modal */
+  .batch-modal { padding: 20px 16px; max-width: 98vw; border-radius: 14px; }
+  .batch-modal h2 { font-size: 17px; }
+  .batch-modal .modal-sub { font-size: 12px; }
+  .batch-files-list { gap: 4px; }
+  .batch-file-tag { font-size: 9px; padding: 2px 5px; }
+
+  /* Heatmap scroll */
+  .heatmap-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Stat table scroll */
+  .stat-table-wrap { overflow-x: auto; }
+
+  /* Evo row */
+  .evo-epoch { width: 46px; font-size: 9px; }
+  .evo-cap { font-size: 12px; }
+
+  /* Progress bars */
+  .prog-n, .prog-vl { font-size: 11px; }
+
+  /* Remove hover transforms on touch devices */
+  .card:hover { transform: none; }
+  .kpi:hover  { transform: none; }
+}
+
+/* ============================================================
+   BREAKPOINT: VERY SMALL (≤ 380px)
+   ============================================================ */
+@media (max-width: 380px) {
+  .kpi-val { font-size: 20px; }
+  .topbar-title { font-size: 12px; }
+  .tb-switch { display: none; } /* hide on very tiny screens, accessible via hamburger */
+  .content { padding: 10px 8px 60px; }
+}
+
+/* ── Touch devices: disable hover box-shadow animations for perf ── */
+@media (hover: none) {
+  .card:hover, .kpi:hover, .cap-item:hover,
+  .chip:hover, .insight:hover { transform: none; box-shadow: var(--shadow); }
+}
