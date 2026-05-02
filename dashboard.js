@@ -18,62 +18,32 @@ const GITHUB_CONFIG = {
   root   : 'SavedResources'          // ← folder containing batch subfolders
 };
 
-/* Personal Access Token — set at runtime via the PAT input in the modal */
-let GH_PAT = '';
+/* Repo is public — no authentication needed */
 
 /* Build GitHub Contents API URL */
 function ghApiUrl(path) {
   return `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}?ref=${GITHUB_CONFIG.branch}`;
 }
 
-/* Standard headers — includes Authorization if a PAT is set */
+/* Standard headers — public repo, no auth needed */
 function ghHeaders() {
-  const h = { Accept: 'application/vnd.github.v3+json' };
-  if (GH_PAT) h['Authorization'] = `token ${GH_PAT}`;
-  return h;
+  return { Accept: 'application/vnd.github.v3+json' };
 }
 
 /**
- * Fetch a file from GitHub via the Contents API.
- * The API returns base64-encoded content for files ≤ 1 MB.
- * For larger files it returns a download_url — we follow that.
+ * Fetch a file directly from GitHub raw URL.
+ * Works for public repositories without any authentication.
  * Returns: ArrayBuffer (for xlsx) or string (for txt)
  */
 async function fetchGhFile(folder, filename, asText = false) {
-  const apiUrl = ghApiUrl(`${GITHUB_CONFIG.root}/${folder}/${filename}`);
-  const res    = await fetch(apiUrl, { headers: ghHeaders() });
-
+  const rawUrl = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${GITHUB_CONFIG.root}/${folder}/${filename}`;
+  const res = await fetch(rawUrl);
   if (!res.ok) {
-    if (res.status === 401) throw new Error(`Authentication failed. Check your Personal Access Token.`);
-    if (res.status === 403) throw new Error(`Access forbidden. Your PAT may lack "repo" scope.`);
     if (res.status === 404) throw new Error(`File not found: ${GITHUB_CONFIG.root}/${folder}/${filename}`);
-    throw new Error(`GitHub API error ${res.status} fetching ${filename}`);
+    throw new Error(`Failed to fetch ${filename} from GitHub (HTTP ${res.status})`);
   }
-
-  const json = await res.json();
-
-  /* ── Case 1: content is inline (≤ 1 MB, base64-encoded) ── */
-  if (json.content) {
-    const b64     = json.content.replace(/\n/g, '');
-    const binary  = atob(b64);
-    if (asText) return binary;                             // txt files — return as string
-    // Convert to ArrayBuffer for xlsx
-    const buf   = new ArrayBuffer(binary.length);
-    const view  = new Uint8Array(buf);
-    for (let i = 0; i < binary.length; i++) view[i] = binary.charCodeAt(i);
-    return buf;
-  }
-
-  /* ── Case 2: file > 1 MB — follow download_url ── */
-  if (json.download_url) {
-    const dlHeaders = GH_PAT ? { Authorization: `token ${GH_PAT}` } : {};
-    const dlRes = await fetch(json.download_url, { headers: dlHeaders });
-    if (!dlRes.ok) throw new Error(`Failed to download ${filename} (HTTP ${dlRes.status})`);
-    if (asText) return dlRes.text();
-    return dlRes.arrayBuffer();
-  }
-
-  throw new Error(`Cannot read ${filename} — no content or download_url returned.`);
+  if (asText) return res.text();
+  return res.arrayBuffer();
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -97,7 +67,6 @@ const REQUIRED_FILES = [
    ────────────────────────────────────────────────────────── */
 let D          = null;   // active parsed dataset
 let charts     = {};     // Chart.js instances
-let filePicker = null;   // <input type=file> element
 
 /* ──────────────────────────────────────────────────────────
    3.  CHART.JS DEFAULTS
@@ -403,132 +372,65 @@ async function initBatchModal() {
   document.getElementById('fileValidationWrap').innerHTML = '';
   document.getElementById('btnLoadBatch').disabled = true;
 
-  // Read PAT from input field (if already shown from previous attempt)
-  const patInput = document.getElementById('ghPatInput');
-  if (patInput && patInput.value.trim()) {
-    GH_PAT = patInput.value.trim();
-  }
-
   // Update repo badge
   const badge = document.getElementById('ghRepoLabel');
   if (badge) badge.textContent = `${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}`;
 
-  // Always show embedded batch first
+  // Always show embedded Batch-256 first — always selectable
   const embChecks = REQUIRED_FILES.map(n => ({ name:n, present:true }));
   renderBatchOpt(list, 'Batch-256', embChecks, true);
   document.getElementById('btnLoadBatch').disabled = false;
 
-  // If no PAT yet — show the token input immediately (private repo needs it)
-  if (!GH_PAT) {
-    setGhStatus('🔒 Private repository — enter your GitHub token to load live batches.', 'error');
-    showPatInput();
-    return;
-  }
-
   setGhStatus('Scanning GitHub repository for batch folders…', 'loading');
 
-  // Fetch batch folders from GitHub API
+  // Fetch batch folders from GitHub Contents API
   try {
     const apiUrl = ghApiUrl(GITHUB_CONFIG.root);
     const res    = await fetch(apiUrl, { headers: ghHeaders() });
 
     if (!res.ok) {
-      if (res.status === 401) {
-        setGhStatus('❌ Invalid token — please check your Personal Access Token and try again.', 'error');
-        showPatInput();
-      } else if (res.status === 403) {
-        setGhStatus('❌ Access denied — make sure your token has the "repo" scope enabled.', 'error');
-        showPatInput();
-      } else if (res.status === 404) {
-        /* Private repo returns 404 for wrong token OR folder not existing */
-        setGhStatus('❌ Not found — check your token is correct and the SavedResources folder exists.', 'error');
-        showPatInput();
+      if (res.status === 404) {
+        setGhStatus(`❌ Folder "${GITHUB_CONFIG.root}" not found. Make sure it exists in your repo root.`, 'error');
+      } else if (res.status === 403 || res.status === 429) {
+        setGhStatus(`⚠ GitHub API rate limit reached. Please wait a moment and refresh.`, 'error');
       } else {
-        setGhStatus(`GitHub error ${res.status}. Check your token and try again.`, 'error');
-        showPatInput();
+        setGhStatus(`GitHub API error ${res.status}. Please try again shortly.`, 'error');
       }
       return;
     }
 
+    // ── Success — parse folder list ──
     const items   = await res.json();
-    const folders = items.filter(i => i.type === 'dir').sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}));
+    const folders = items
+      .filter(i => i.type === 'dir')
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
     if (folders.length === 0) {
-      setGhStatus(`No subfolders found in "${GITHUB_CONFIG.root}". Add batch folders to your repo.`, 'error');
+      setGhStatus(`No batch subfolders found inside "${GITHUB_CONFIG.root}". Add a Batch-XX folder.`, 'error');
       return;
     }
 
-    setGhStatus(`Found ${folders.length} batch folder${folders.length>1?'s':''} — checking files…`, 'loading');
+    setGhStatus(`Found ${folders.length} batch folder${folders.length > 1 ? 's' : ''} — verifying files…`, 'loading');
 
-    // Check files in each folder concurrently
-    const checks = await Promise.all(
-      folders.map(f => checkGhFolderFiles(f.name).then(c => ({ folder:f.name, checks:c })))
+    // Check all 5 required files exist in each folder (parallel)
+    const results = await Promise.all(
+      folders.map(f => checkGhFolderFiles(f.name).then(c => ({ folder: f.name, checks: c })))
     );
 
-    checks.forEach(({ folder, checks:c }) => renderBatchOpt(list, folder, c, false));
+    results.forEach(({ folder, checks: c }) => renderBatchOpt(list, folder, c, false));
 
-    const validCount = checks.filter(b => b.checks.every(c=>c.present)).length;
+    const validCount = results.filter(r => r.checks.every(c => c.present)).length;
     setGhStatus(
-      `✓ ${folders.length} batch folder${folders.length>1?'s':''} found · ${validCount} fully ready`,
+      `✓ ${folders.length} batch folder${folders.length > 1 ? 's' : ''} found · ${validCount} fully ready`,
       'success'
     );
 
   } catch (err) {
-    console.error(err);
-    setGhStatus('Could not reach GitHub. Check your internet connection.', 'error');
+    console.error('GitHub scan error:', err);
+    setGhStatus('⚠ Could not reach GitHub. Check your internet connection and try again.', 'error');
   }
 }
 
-/** Show PAT input field in modal */
-function showPatInput() {
-  const wrap = document.getElementById('fileValidationWrap');
-  // Preserve existing token value if re-shown after error
-  const existingVal = document.getElementById('ghPatInput')?.value || '';
-  wrap.innerHTML = `
-    <div class="pat-input-wrap">
-      <div class="pat-label">
-        🔑 GitHub Personal Access Token
-        <a href="https://github.com/settings/tokens/new?scopes=repo&description=DHARA+Dashboard"
-           target="_blank" rel="noopener" class="pat-help-link">Generate token →</a>
-      </div>
-      <div class="pat-hint">
-        Your repo is <strong>private</strong> — a token is required to read files from it.<br>
-        Scope needed: <code>repo</code> &nbsp;·&nbsp; Token is only used in this browser session.
-      </div>
-      <div class="pat-row">
-        <input type="password" id="ghPatInput" class="pat-input"
-               placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-               value="${existingVal}"
-               autocomplete="off" spellcheck="false">
-        <button class="pat-btn" onclick="applyPat()">Connect →</button>
-      </div>
-    </div>`;
-  // Auto-focus the input
-  setTimeout(() => {
-    const inp = document.getElementById('ghPatInput');
-    if (inp) inp.focus();
-  }, 80);
-  // Allow pressing Enter to submit
-  setTimeout(() => {
-    const inp = document.getElementById('ghPatInput');
-    if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') applyPat(); });
-  }, 100);
-}
-window.showPatInput = showPatInput;
-
-/** Apply the entered PAT and re-scan */
-function applyPat() {
-  const input = document.getElementById('ghPatInput');
-  if (!input || !input.value.trim()) {
-    input.style.borderColor = 'var(--red)';
-    input.placeholder = 'Please enter a token!';
-    return;
-  }
-  GH_PAT = input.value.trim();
-  // Re-scan with the new token
-  initBatchModal();
-}
-window.applyPat = applyPat;
 
 /** Load the selected batch */
 async function loadBatch() {
