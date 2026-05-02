@@ -183,27 +183,31 @@
         </div>
       </div>
 
-      <div class="grid-3">
-        <div class="card anim-card">
-          <div class="section-title">
-            <h2>BLEU-1 &amp; BLEU-2</h2>
-            <span class="pill pill-blue">High-order</span>
+      <div class="grid-2">
+        <!-- Left column: BLEU-1/2 stacked above BLEU-3/4 -->
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div class="card anim-card">
+            <div class="section-title">
+              <h2>BLEU-1 &amp; BLEU-2</h2>
+              <span class="pill pill-blue">High-order</span>
+            </div>
+            <canvas id="bleuSmallChart12" height="110"></canvas>
           </div>
-          <canvas id="bleuSmallChart12" height="140"></canvas>
-        </div>
-        <div class="card anim-card">
-          <div class="section-title">
-            <h2>BLEU-3 &amp; BLEU-4</h2>
-            <span class="pill pill-orange">Low-order</span>
+          <div class="card anim-card">
+            <div class="section-title">
+              <h2>BLEU-3 &amp; BLEU-4</h2>
+              <span class="pill pill-orange">Low-order</span>
+            </div>
+            <canvas id="bleuSmallChart34" height="110"></canvas>
           </div>
-          <canvas id="bleuSmallChart34" height="140"></canvas>
         </div>
+        <!-- Right column: Radar -->
         <div class="card anim-card">
           <div class="section-title">
             <h2>Performance Radar</h2>
             <span class="pill pill-purple">Test vs Val</span>
           </div>
-          <canvas id="radarSmallChart" height="140"></canvas>
+          <canvas id="radarSmallChart" height="280"></canvas>
         </div>
       </div>
 
