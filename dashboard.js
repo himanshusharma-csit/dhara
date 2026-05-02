@@ -15,7 +15,8 @@ const GITHUB_CONFIG = {
   owner  : 'himanshusharma-csit',   // ← your GitHub username
   repo   : 'dhara',                  // ← your repository name
   branch : 'main',                   // ← branch (main or master)
-  root   : 'SavedResources'          // ← folder containing batch subfolders
+  root   : 'SavedResources',          // ← folder containing batch subfolders
+  token  : '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'
 };
 
 /* Repo is public — no authentication needed */
