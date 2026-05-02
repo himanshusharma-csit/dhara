@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DHARA · Analytics Dashboard</title>
+<link rel="stylesheet" href="dashboard.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- BATCH SELECTOR MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-logo">🧠</div>
+    <h2 class="modal-title">DHARA Analytics Dashboard</h2>
+    <p class="modal-sub">Select a batch to visualise its results. All data is loaded live from GitHub.</p>
+
+    <div class="repo-strip">
+      <span>🔗</span>
+      <span class="repo-name">himanshusharma-csit / dhara</span>
+      <span class="repo-folder">📁 SavedResources/</span>
+    </div>
+
+    <div class="status-bar" id="statusBar">
+      <div class="status-spinner" id="statusSpinner"></div>
+      <span id="statusText">Loading batches…</span>
+    </div>
+
+    <div class="batch-list" id="batchList"></div>
+    <div id="extraInfo"></div>
+
+    <div class="modal-footer">
+      <span class="footer-note">Data fetched live from GitHub · No token required</span>
+      <button class="btn-load" id="btnLoad" onclick="loadSelectedBatch()" disabled>Open Dashboard →</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-head">
+    <div class="sb-icon">🧠</div>
+    <div>
+      <div class="sb-title">DHARA</div>
+      <div class="sb-sub">Analytics v3.0</div>
+    </div>
+  </div>
+  <nav class="sb-nav">
+    <div class="nav-grp">Overview</div>
+    <button class="nav-btn active" onclick="goPage('dashboard',this)"><span class="nav-ico">📊</span>Dashboard</button>
+    <div class="nav-grp">Analysis</div>
+    <button class="nav-btn" onclick="goPage('training',this)"><span class="nav-ico">📈</span>Training Logs</button>
+    <button class="nav-btn" onclick="goPage('evaluation',this)"><span class="nav-ico">🎯</span>Evaluation</button>
+    <button class="nav-btn" onclick="goPage('captions',this)"><span class="nav-ico">🔤</span>Captions</button>
+    <button class="nav-btn" onclick="goPage('advanced',this)"><span class="nav-ico">🔬</span>Advanced Analytics</button>
+    <div class="nav-grp">Project</div>
+    <button class="nav-btn" onclick="goPage('insights',this)"><span class="nav-ico">💡</span>Insights</button>
+  </nav>
+  <div class="sb-foot">
+    <div class="sb-user">
+      <div class="sb-av">HS</div>
+      <div>
+        <a href="https://www.linkedin.com/in/dr-himanshusharma/" target="_blank" class="sb-name">Dr. Himanshu Sharma</a>
+        <div class="sb-role">Researcher · NLP &amp; Vision</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div class="sb-overlay" id="sbOverlay" onclick="closeSb()"></div>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="tb-left">
+      <button class="hamburger" id="hamburger" onclick="toggleSb()"><span></span><span></span><span></span></button>
+      <div>
+        <div class="tb-title" id="pageTitle">Dashboard — Overview</div>
+        <div class="tb-sub" id="batchLabel">Loading…</div>
+      </div>
+    </div>
+    <div class="tb-right">
+      <div class="tb-badge"><span class="live-dot"></span><span id="cpBadge">Best Checkpoint</span></div>
+      <button class="tb-switch" onclick="document.getElementById('overlay').style.display='flex'">Switch Batch</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="g-7-5 mb">
+        <div class="card"><div class="sec-title"><h2>Training Loss Curve</h2><span class="pill blue">Full Training</span></div><canvas id="c-epochLoss" height="100"></canvas></div>
+        <div class="card"><div class="sec-title"><h2>Test vs Validation</h2><span class="pill green">Best Epoch</span></div><canvas id="c-barComp" height="100"></canvas></div>
+      </div>
+      <div class="g-2 mb">
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div class="card"><div class="sec-title"><h2>BLEU-1 &amp; BLEU-2</h2><span class="pill blue">High-order</span></div><div style="flex:1;min-height:160px"><canvas id="c-bleu12" style="width:100%;height:100%"></canvas></div></div>
+          <div class="card"><div class="sec-title"><h2>BLEU-3 &amp; BLEU-4</h2><span class="pill orange">Low-order</span></div><div style="flex:1;min-height:160px"><canvas id="c-bleu34" style="width:100%;height:100%"></canvas></div></div>
+        </div>
+        <div class="card" style="display:flex;flex-direction:column"><div class="sec-title"><h2>Performance Radar</h2><span class="pill purple">Test vs Val</span></div><div style="flex:1;min-height:380px"><canvas id="c-radar" style="width:100%;height:100%"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- TRAINING -->
+    <div class="page" id="page-training">
+      <div class="g-7-5 mb">
+        <div class="card"><div class="sec-title"><h2>Epoch Loss Trajectory</h2><span class="pill blue">Full Training</span></div><canvas id="c-epochLossFull" height="95"></canvas></div>
+        <div class="card">
+          <div class="sec-title"><h2>Loss Convergence</h2></div>
+          <div id="lossBars" class="progs" style="margin-bottom:16px"></div>
+          <div class="sec-title" style="margin-bottom:8px"><h2 style="font-size:13px">Training Summary</h2></div>
+          <div id="trainStats"></div>
+        </div>
+      </div>
+      <div class="card mb">
+        <div class="sec-title"><h2>Batch-Level Loss Inspector</h2><span class="pill orange">Intra-Epoch</span></div>
+        <div class="slider-row"><span class="slbl">Epoch:</span><input type="range" id="batchSlider" min="0" max="39" value="0"><span class="sval" id="batchSliderVal">Epoch 0</span></div>
+        <canvas id="c-batchLoss" height="85"></canvas>
+      </div>
+      <div class="card mb"><div class="sec-title"><h2>Caption Length Evolution</h2><span class="pill purple">Mean ± σ</span></div><canvas id="c-capLen" height="80"></canvas></div>
+    </div>
+
+    <!-- EVALUATION -->
+    <div class="page" id="page-evaluation">
+      <div class="card mb">
+        <div class="sec-title"><h2>Validation Metrics</h2><span class="pill blue">Per Epoch</span></div>
+        <div class="tabs" id="evalTabs">
+          <button class="tab active" data-pane="ep-bleu">BLEU 1–4</button>
+          <button class="tab" data-pane="ep-mc">METEOR &amp; CIDEr</button>
+          <button class="tab" data-pane="ep-inspect">Epoch Inspector</button>
+        </div>
+        <div id="ep-bleu">
+          <div class="g-2" style="margin-bottom:0">
+            <div><div class="sub-label">BLEU-1 &amp; BLEU-2</div><canvas id="c-bleuFull12" height="130"></canvas></div>
+            <div><div class="sub-label">BLEU-3 &amp; BLEU-4</div><canvas id="c-bleuFull34" height="130"></canvas></div>
+          </div>
+        </div>
+        <div id="ep-mc" style="display:none"><canvas id="c-meteorCider" height="100"></canvas></div>
+        <div id="ep-inspect" style="display:none">
+          <div class="slider-row"><span class="slbl">Epoch:</span><input type="range" id="evalSlider" min="0" max="39" value="0"><span class="sval" id="evalSliderVal">Epoch 0</span></div>
+          <div class="chips" id="evalChips"></div>
+        </div>
+      </div>
+      <div class="g-2 mb">
+        <div class="card"><div class="sec-title"><h2>Loss vs BLEU-4</h2><span class="pill orange">Scatter</span></div><canvas id="c-scatter" height="185"></canvas></div>
+        <div class="card"><div class="sec-title"><h2>Test Result Summary</h2><span class="pill green">Best Checkpoint</span></div><canvas id="c-testBar" height="185"></canvas></div>
+      </div>
+      <div class="card mb"><div class="sec-title"><h2>Top 10 Epochs by BLEU-4</h2></div><div style="overflow-x:auto"><table class="data-table" id="top10Table"></table></div></div>
+    </div>
+
+    <!-- CAPTIONS -->
+    <div class="page" id="page-captions">
+      <div class="card mb">
+        <div class="sec-title"><h2>Caption Quality Evolution</h2><span class="pill blue">Across Epochs</span></div>
+        <div class="evo-tabs" id="evoTabs"></div>
+        <div id="evoTimeline"></div>
+      </div>
+      <div class="card mb"><div class="sec-title"><h2>Generated Hindi Captions</h2><span class="pill green">Test Set · Best Checkpoint</span></div><div class="cap-grid" id="capGrid"></div></div>
+      <div class="card mb"><div class="sec-title"><h2>Caption Length Distribution</h2><span class="pill purple">Key Epochs</span></div><canvas id="c-capDist" height="90"></canvas></div>
+    </div>
+
+    <!-- ADVANCED -->
+    <div class="page" id="page-advanced">
+      <div class="g-2 mb">
+        <div class="card"><div class="sec-title"><h2>Metric Correlation Heatmap</h2><span class="pill blue">Pearson r</span></div><canvas id="c-corr" height="210"></canvas></div>
+        <div class="card"><div class="sec-title"><h2>Caption Length KDE</h2><span class="pill purple">Kernel Density</span></div><canvas id="c-kde" height="210"></canvas></div>
+      </div>
+      <div class="g-2 mb">
+        <div class="card"><div class="sec-title"><h2>BLEU-4 Distribution</h2><span class="pill orange">Q1/Q3 Bands</span></div><canvas id="c-bleu4dist" height="200"></canvas></div>
+        <div class="card"><div class="sec-title"><h2>Loss vs Metrics Scatter</h2><span class="pill green">Multi-metric</span></div><canvas id="c-multiScatter" height="200"></canvas></div>
+      </div>
+      <div class="card mb"><div class="sec-title"><h2>Epoch × Metric Heatmap</h2><span class="pill cyan">Normalised</span></div><div style="overflow-x:auto" id="heatmapWrap"></div></div>
+    </div>
+
+    <!-- INSIGHTS -->
+    <div class="page" id="page-insights">
+      <div class="insight-grid" id="insightGrid"></div>
+      <div class="card mb"><div class="sec-title"><h2>Model Architecture</h2><span class="pill blue">DHARA Framework</span></div><div id="archTable"></div></div>
+    </div>
+
+  </div>
+</main>
+
+<script src="dashboard.js"></script>
+</body>
+</html>
