@@ -403,7 +403,7 @@ async function initBatchModal() {
   document.getElementById('fileValidationWrap').innerHTML = '';
   document.getElementById('btnLoadBatch').disabled = true;
 
-  // Read PAT from input field (if shown)
+  // Read PAT from input field (if already shown from previous attempt)
   const patInput = document.getElementById('ghPatInput');
   if (patInput && patInput.value.trim()) {
     GH_PAT = patInput.value.trim();
@@ -413,12 +413,19 @@ async function initBatchModal() {
   const badge = document.getElementById('ghRepoLabel');
   if (badge) badge.textContent = `${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}`;
 
-  setGhStatus('Scanning GitHub repository for batch folders…', 'loading');
-
   // Always show embedded batch first
   const embChecks = REQUIRED_FILES.map(n => ({ name:n, present:true }));
   renderBatchOpt(list, 'Batch-256', embChecks, true);
   document.getElementById('btnLoadBatch').disabled = false;
+
+  // If no PAT yet — show the token input immediately (private repo needs it)
+  if (!GH_PAT) {
+    setGhStatus('🔒 Private repository — enter your GitHub token to load live batches.', 'error');
+    showPatInput();
+    return;
+  }
+
+  setGhStatus('Scanning GitHub repository for batch folders…', 'loading');
 
   // Fetch batch folders from GitHub API
   try {
@@ -426,13 +433,19 @@ async function initBatchModal() {
     const res    = await fetch(apiUrl, { headers: ghHeaders() });
 
     if (!res.ok) {
-      if (res.status === 401 || res.status === 403) {
-        setGhStatus('⚠ Authentication required — enter your GitHub Personal Access Token below to load live batches.', 'error');
+      if (res.status === 401) {
+        setGhStatus('❌ Invalid token — please check your Personal Access Token and try again.', 'error');
+        showPatInput();
+      } else if (res.status === 403) {
+        setGhStatus('❌ Access denied — make sure your token has the "repo" scope enabled.', 'error');
         showPatInput();
       } else if (res.status === 404) {
-        setGhStatus(`Folder "${GITHUB_CONFIG.root}" not found in repo. Create it and add batch subfolders.`, 'error');
+        /* Private repo returns 404 for wrong token OR folder not existing */
+        setGhStatus('❌ Not found — check your token is correct and the SavedResources folder exists.', 'error');
+        showPatInput();
       } else {
-        setGhStatus(`GitHub error ${res.status}. Embedded batch still available.`, 'error');
+        setGhStatus(`GitHub error ${res.status}. Check your token and try again.`, 'error');
+        showPatInput();
       }
       return;
     }
@@ -469,7 +482,8 @@ async function initBatchModal() {
 /** Show PAT input field in modal */
 function showPatInput() {
   const wrap = document.getElementById('fileValidationWrap');
-  if (document.getElementById('ghPatInput')) return; // already shown
+  // Preserve existing token value if re-shown after error
+  const existingVal = document.getElementById('ghPatInput')?.value || '';
   wrap.innerHTML = `
     <div class="pat-input-wrap">
       <div class="pat-label">
@@ -477,24 +491,41 @@ function showPatInput() {
         <a href="https://github.com/settings/tokens/new?scopes=repo&description=DHARA+Dashboard"
            target="_blank" rel="noopener" class="pat-help-link">Generate token →</a>
       </div>
-      <div class="pat-hint">Required for private repos. Scope needed: <code>repo</code>. Token stays in your browser only.</div>
+      <div class="pat-hint">
+        Your repo is <strong>private</strong> — a token is required to read files from it.<br>
+        Scope needed: <code>repo</code> &nbsp;·&nbsp; Token is only used in this browser session.
+      </div>
       <div class="pat-row">
-        <input type="password" id="ghPatInput" class="pat-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+        <input type="password" id="ghPatInput" class="pat-input"
+               placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+               value="${existingVal}"
                autocomplete="off" spellcheck="false">
-        <button class="pat-btn" onclick="applyPat()">Connect</button>
+        <button class="pat-btn" onclick="applyPat()">Connect →</button>
       </div>
     </div>`;
+  // Auto-focus the input
+  setTimeout(() => {
+    const inp = document.getElementById('ghPatInput');
+    if (inp) inp.focus();
+  }, 80);
+  // Allow pressing Enter to submit
+  setTimeout(() => {
+    const inp = document.getElementById('ghPatInput');
+    if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') applyPat(); });
+  }, 100);
 }
 window.showPatInput = showPatInput;
 
 /** Apply the entered PAT and re-scan */
 function applyPat() {
   const input = document.getElementById('ghPatInput');
-  if (!input || !input.value.trim()) { alert('Please enter a token first.'); return; }
+  if (!input || !input.value.trim()) {
+    input.style.borderColor = 'var(--red)';
+    input.placeholder = 'Please enter a token!';
+    return;
+  }
   GH_PAT = input.value.trim();
-  // Clear list except embedded, re-scan
-  const list = document.getElementById('batchList');
-  list.innerHTML = '';
+  // Re-scan with the new token
   initBatchModal();
 }
 window.applyPat = applyPat;
