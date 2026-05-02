@@ -12,24 +12,17 @@
    inside the repo where batch subfolders live.
    ────────────────────────────────────────────────────────── */
 const GITHUB_CONFIG = {
-  owner  : 'himanshusharma-csit',   // ← your GitHub username
-  repo   : 'dhara',                  // ← your repository name
-  branch : 'main',                   // ← branch (main or master)
-  root   : 'SavedResources',          // ← folder containing batch subfolders
-  token  : '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'
+  owner  : 'himanshusharma-csit',
+  repo   : 'dhara',
+  branch : 'main',
+  root   : 'SavedResources'
 };
 
-/* Repo is public — no authentication needed */
-
-/* Build GitHub Contents API URL */
-function ghApiUrl(path) {
-  return `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}?ref=${GITHUB_CONFIG.branch}`;
+/* Build raw GitHub URL — no API, no token, no rate limit */
+function ghRawUrl(path) {
+  return `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${path}`;
 }
-
-/* Standard headers — public repo, no auth needed */
-function ghHeaders() {
-  return { Accept: 'application/vnd.github.v3+json' };
-}
+/* no API headers needed — using raw URLs */
 
 /**
  * Fetch a file directly from GitHub raw URL.
@@ -37,11 +30,11 @@ function ghHeaders() {
  * Returns: ArrayBuffer (for xlsx) or string (for txt)
  */
 async function fetchGhFile(folder, filename, asText = false) {
-  const rawUrl = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${GITHUB_CONFIG.root}/${folder}/${filename}`;
-  const res = await fetch(rawUrl);
+  const url = ghRawUrl(`${GITHUB_CONFIG.root}/${folder}/${filename}`);
+  const res = await fetch(url);
   if (!res.ok) {
     if (res.status === 404) throw new Error(`File not found: ${GITHUB_CONFIG.root}/${folder}/${filename}`);
-    throw new Error(`Failed to fetch ${filename} from GitHub (HTTP ${res.status})`);
+    throw new Error(`Failed to fetch ${filename} (HTTP ${res.status})`);
   }
   if (asText) return res.text();
   return res.arrayBuffer();
@@ -136,16 +129,18 @@ async function fetchGhText(folder, filename) {
 /** Check which of the 5 required files exist in a GitHub folder.
  *  Uses the GitHub Contents API with auth headers. */
 async function checkGhFolderFiles(folderName) {
-  try {
-    const apiUrl = ghApiUrl(`${GITHUB_CONFIG.root}/${folderName}`);
-    const res    = await fetch(apiUrl, { headers: ghHeaders() });
-    if (!res.ok) return REQUIRED_FILES.map(n => ({ name:n, present:false }));
-    const items  = await res.json();
-    const names  = items.map(i => i.name);
-    return REQUIRED_FILES.map(n => ({ name:n, present: names.includes(n) }));
-  } catch (_) {
-    return REQUIRED_FILES.map(n => ({ name:n, present:false }));
-  }
+  // Used as fallback — primary check happens in initBatchModal via HEAD requests
+  const checks = await Promise.all(
+    REQUIRED_FILES.map(async name => {
+      try {
+        const r = await fetch(ghRawUrl(`${GITHUB_CONFIG.root}/${folderName}/${name}`), { method: 'HEAD' });
+        return { name, present: r.ok };
+      } catch (_) {
+        return { name, present: false };
+      }
+    })
+  );
+  return checks;
 }
 
 /**
@@ -348,67 +343,85 @@ function selectBatchOpt(clickedOpt, folderName) {
   document.getElementById('btnLoadBatch').disabled = false;
 }
 
-/** Main init — scan GitHub repo for batch folders */
+/**
+ * Main init — reads batches.json from repo root via raw URL.
+ * No GitHub API calls. No token. No rate limits.
+ */
 async function initBatchModal() {
   const list = document.getElementById('batchList');
   list.innerHTML = '';
   document.getElementById('fileValidationWrap').innerHTML = '';
   document.getElementById('btnLoadBatch').disabled = true;
 
-  // Update repo badge
   const badge = document.getElementById('ghRepoLabel');
   if (badge) badge.textContent = `${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}`;
 
-  // Button stays disabled until user selects a GitHub batch
+  setGhStatus('Loading available batches…', 'loading');
 
-  setGhStatus('Scanning GitHub repository for batch folders…', 'loading');
-
-  // Fetch batch folders from GitHub Contents API
   try {
-    const apiUrl = ghApiUrl(GITHUB_CONFIG.root);
-    const res    = await fetch(apiUrl, { headers: ghHeaders() });
+    // Fetch batches.json directly — no API, no rate limit
+    const url = ghRawUrl('batches.json');
+    const res = await fetch(url + '?t=' + Date.now());
 
     if (!res.ok) {
-      if (res.status === 404) {
-        setGhStatus(`❌ Folder "${GITHUB_CONFIG.root}" not found. Make sure it exists in your repo root.`, 'error');
-      } else if (res.status === 403 || res.status === 429) {
-        setGhStatus(`⚠ GitHub API rate limit reached. Please wait a moment and refresh.`, 'error');
-      } else {
-        setGhStatus(`GitHub API error ${res.status}. Please try again shortly.`, 'error');
-      }
+      setGhStatus('❌ batches.json not found in repo root.', 'error');
+      showBatchesJsonHelp();
       return;
     }
 
-    // ── Success — parse folder list ──
-    const items   = await res.json();
-    const folders = items
-      .filter(i => i.type === 'dir')
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    const batchList = await res.json();
 
-    if (folders.length === 0) {
-      setGhStatus(`No batch subfolders found inside "${GITHUB_CONFIG.root}". Add a Batch-XX folder.`, 'error');
+    if (!Array.isArray(batchList) || batchList.length === 0) {
+      setGhStatus('⚠ batches.json is empty. Add batch folder names to it.', 'error');
       return;
     }
 
-    setGhStatus(`Found ${folders.length} batch folder${folders.length > 1 ? 's' : ''} — verifying files…`, 'loading');
+    setGhStatus(`Found ${batchList.length} batch${batchList.length > 1 ? 'es' : ''} — verifying files…`, 'loading');
 
-    // Check all 5 required files exist in each folder (parallel)
+    // Check each batch folder for required files via HEAD requests
     const results = await Promise.all(
-      folders.map(f => checkGhFolderFiles(f.name).then(c => ({ folder: f.name, checks: c })))
+      batchList.map(async folder => {
+        const checks = await Promise.all(
+          REQUIRED_FILES.map(async name => {
+            try {
+              const r = await fetch(
+                ghRawUrl(`${GITHUB_CONFIG.root}/${folder}/${name}`) + '?t=' + Date.now(),
+                { method: 'HEAD' }
+              );
+              return { name, present: r.ok };
+            } catch (_) {
+              return { name, present: false };
+            }
+          })
+        );
+        return { folder, checks };
+      })
     );
 
-    results.forEach(({ folder, checks: c }) => renderBatchOpt(list, folder, c));
+    results.forEach(({ folder, checks }) => renderBatchOpt(list, folder, checks));
 
     const validCount = results.filter(r => r.checks.every(c => c.present)).length;
     setGhStatus(
-      `✓ ${folders.length} batch folder${folders.length > 1 ? 's' : ''} found · ${validCount} fully ready`,
+      `✓ ${batchList.length} batch${batchList.length > 1 ? 'es' : ''} found · ${validCount} fully ready`,
       'success'
     );
 
   } catch (err) {
-    console.error('GitHub scan error:', err);
-    setGhStatus('⚠ Could not reach GitHub. Check your internet connection and try again.', 'error');
+    console.error('Batch load error:', err);
+    setGhStatus('⚠ Could not load batches. Check your connection and retry.', 'error');
+    showRetryButton();
   }
+}
+
+/** Show instructions for batches.json */
+function showBatchesJsonHelp() {
+  const wrap = document.getElementById('fileValidationWrap');
+  wrap.innerHTML = `
+    <div style="background:var(--blue-l);border:1px solid rgba(37,99,235,.2);border-radius:10px;padding:14px 16px;font-size:12px;color:var(--text2);line-height:1.7">
+      <strong style="color:var(--blue)">📋 Create batches.json in your repo root:</strong><br>
+      <code style="background:var(--surface3);padding:6px 10px;border-radius:6px;display:block;font-family:monospace;font-size:11px;margin-top:6px">["Batch-128", "Batch-256"]</code>
+      <button class="retry-btn" onclick="initBatchModal()" style="margin-top:10px">↺ Retry</button>
+    </div>`;
 }
 
 
