@@ -25,50 +25,45 @@
     <div class="batch-modal-logo">🧠</div>
     <h2>DHARA Analytics Dashboard</h2>
     <p class="modal-sub">
-      Select a batch configuration to load. The pre-loaded Batch-256 is always available.
-      To analyse a different batch, pick its 5 data files using the button below.
+      Batch folders are loaded directly from your GitHub repository.
+      Select a batch below to visualise its results.
     </p>
 
-    <!-- Required file reference -->
-    <div class="batch-folder-info">
-      <div>
-        <div class="folder-label">Required files per batch folder</div>
-        <div class="batch-files-list">
-          <span class="batch-file-tag">TrainingLogs.xlsx</span>
-          <span class="batch-file-tag">PredictionSplit.xlsx</span>
-          <span class="batch-file-tag">TestResults.xlsx</span>
-          <span class="batch-file-tag">TestCaptions.txt</span>
-          <span class="batch-file-tag">GeneratedPredictions.txt</span>
-        </div>
-      </div>
+    <!-- Repo info strip -->
+    <div class="gh-repo-strip">
+      <span class="gh-repo-strip-icon">🔗</span>
+      <span class="gh-repo-strip-name" id="ghRepoLabel">himanshusharma-csit / dhara</span>
+      <span class="gh-repo-strip-folder">📁 SavedResources/</span>
     </div>
 
-    <div class="batch-divider"></div>
+    <!-- GitHub status bar -->
+    <div class="gh-status" id="ghStatus">
+      <div class="spinner"></div>
+      <span id="ghStatusText">Scanning GitHub repository for batch folders…</span>
+    </div>
 
-    <!-- Batch options list -->
+    <!-- Batch list (populated dynamically) -->
     <div class="batch-list" id="batchList"></div>
 
-    <!-- File-validation feedback -->
-    <div id="fileValidationWrap" style="margin-bottom:16px"></div>
+    <!-- PAT input / file validation — shown dynamically -->
+    <div id="fileValidationWrap"></div>
 
-    <!-- Loading spinner (hidden until parse starts) -->
+    <!-- Fetch progress bar -->
+    <div class="fetch-progress" id="fetchProgress" style="display:none">
+      <div class="fetch-progress-bar" id="fetchProgressBar"></div>
+    </div>
+
+    <!-- Loading state -->
     <div class="load-state" id="loadState" style="display:none">
       <div class="spinner"></div>
-      <span class="load-msg">Parsing files…</span>
+      <span class="load-msg" id="loadMsg">Fetching files from GitHub…</span>
     </div>
 
     <!-- Footer -->
     <div class="batch-modal-footer">
-      <button
-        style="padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid var(--border);background:var(--surface2);cursor:pointer;color:var(--blue);font-family:'Outfit',sans-serif;transition:all .15s;white-space:nowrap;flex-shrink:0"
-        onclick="openFilePicker()"
-        onmouseover="this.style.background='var(--blue-l)'"
-        onmouseout="this.style.background='var(--surface2)'"
-      >
-        📂 Load Batch Folder
-      </button>
-      <span class="batch-modal-note">All processing is local — no data leaves your browser.</span>
-      <button class="btn-primary" id="btnLoadBatch" onclick="loadBatch()" style="white-space:nowrap;flex-shrink:0">
+      <span class="batch-modal-note">All data is fetched live from GitHub</span>
+      <button class="btn-primary" id="btnLoadBatch" onclick="loadBatch()" disabled
+              style="white-space:nowrap;flex-shrink:0">
         Open Dashboard →
       </button>
     </div>
