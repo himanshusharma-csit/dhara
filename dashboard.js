@@ -627,7 +627,7 @@ function renderDashboard() {
       {label:'BLEU-1',data:D.validation.map(d=>d.bleu1),borderColor:'#2563eb',backgroundColor:b12G1,fill:true,borderWidth:2.5,tension:0.35,pointRadius:0},
       {label:'BLEU-2',data:D.validation.map(d=>d.bleu2),borderColor:'#7c3aed',backgroundColor:b12G2,fill:true,borderWidth:2,tension:0.35,pointRadius:0},
     ]
-  }, { plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:7,color:'#4b5580',padding:8}},tooltip:{mode:'index',intersect:false}}, scales:scaleOpts('Epoch','Score') });
+  }, { maintainAspectRatio:false, plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:7,color:'#4b5580',padding:8}},tooltip:{mode:'index',intersect:false}}, scales:scaleOpts('Epoch','Score') });
 
   /* BLEU-3 & BLEU-4 chart */
   const b34Ctx = document.getElementById('bleuSmallChart34').getContext('2d');
@@ -642,7 +642,7 @@ function renderDashboard() {
         pointRadius:D.validation.map((_,i)=>i===bestB4ep?7:0),
         pointBackgroundColor:'#d97706',pointBorderColor:'#fff',pointBorderWidth:2},
     ]
-  }, { plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:7,color:'#4b5580',padding:8}},tooltip:{mode:'index',intersect:false}}, scales:scaleOpts('Epoch','Score') });
+  }, { maintainAspectRatio:false, plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:7,color:'#4b5580',padding:8}},tooltip:{mode:'index',intersect:false}}, scales:scaleOpts('Epoch','Score') });
 
   /* Radar */
   const MX = {
@@ -657,7 +657,7 @@ function renderDashboard() {
       { label:'Test',    data:[norm(T.bleu1,MX.b1),norm(T.bleu2,MX.b2),norm(T.bleu3,MX.b3),norm(T.bleu4,MX.b4),norm(T.meteor,MX.mt),norm(T.cider,MX.cd)], borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.14)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#2563eb' },
       { label:`Val E${D.testResult.epoch}`, data:[norm(V17.bleu1,MX.b1),norm(V17.bleu2,MX.b2),norm(V17.bleu3,MX.b3),norm(V17.bleu4,MX.b4),norm(V17.meteor,MX.mt),norm(V17.cider,MX.cd)], borderColor:'#7c3aed',backgroundColor:'rgba(124,58,237,0.11)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#7c3aed' }
     ]
-  }, { plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:7,color:'#4b5580',padding:8}}}, scales:{r:{angleLines:{color:'#e2e6f0'},grid:{color:'#e2e6f0'},pointLabels:{color:'#4b5580',font:{size:11}},ticks:{color:'#8892b0',stepSize:25,backdropColor:'transparent'}}} });
+  }, { maintainAspectRatio:false, plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:7,color:'#4b5580',padding:8}}}, scales:{r:{angleLines:{color:'#e2e6f0'},grid:{color:'#e2e6f0'},pointLabels:{color:'#4b5580',font:{size:11}},ticks:{color:'#8892b0',stepSize:25,backdropColor:'transparent'}}} });
 }
 
 /* ──────────────────────────────────────────────────────────
