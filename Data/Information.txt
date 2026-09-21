@@ -1,0 +1,1 @@
+This folder contains the training, testing, and validation splits used by the DHARA framework for training and evaluation.
