@@ -21,7 +21,7 @@ Expected layout (the same as the Google Drive folders):
       Flickr 8K/Word Threshold-1 … Word Threshold-5/Batch-32 … Batch-256/   (same files)
 
 Usage:
-    python export_results.py --src "path/to/DHARA Saved Resources" --out data
+    python export_results.py --src "path/to/DHARA Saved Resources" --out Data
     python export_results.py --src ... --human HumanEvaluation/DHARA_HumanVerifiedResults.xlsx
 
 Needs Python 3.8+, pandas and openpyxl.
@@ -354,7 +354,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     here = Path(__file__).resolve().parent
     ap.add_argument("--src", default=str(here / "SavedResources"), help="folder holding 'PASCAL 1K' and 'Flickr 8K'")
-    ap.add_argument("--out", default=str(here / "data"))
+    ap.add_argument("--out", default=str(here / "Data"))
     ap.add_argument("--human", default=str(here / "HumanEvaluation" / "DHARA_HumanVerifiedResults.xlsx"))
     ap.add_argument("--only", nargs="*", help="only these dataset folders, e.g. --only 'PASCAL 1K'")
     a = ap.parse_args()

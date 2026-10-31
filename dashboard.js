@@ -44,11 +44,15 @@ let CAP_SHOWN = 12, CAP_SORT = 'file', SAME_SEED = 0;
    1.  DATA ACCESS
    ══════════════════════════════════════════════════════════════ */
 function rawUrl(path){ return `https://raw.githubusercontent.com/${GH.owner}/${GH.repo}/${GH.branch}/${path}`; }
+/* Results live in the repository's "Data" folder. GitHub Pages is case-sensitive, so
+   "data" is tried as a fallback, then the raw GitHub copy (e.g. when opened from disk). */
 async function fetchJSON(path){
-  const tries=[path+'?v='+Date.now(), rawUrl(path)+'?v='+Date.now()];
+  const rel=path.replace(/^(Data|data)\//,'');
+  const v='?v='+Date.now();
+  const tries=[`Data/${rel}`,`data/${rel}`].flatMap(p=>[p+v, rawUrl(p)+v]);
   let last=null;
   for(const u of tries){
-    try{ const r=await fetch(u,{cache:'no-store'}); if(r.ok) return await r.json(); last=new Error(`HTTP ${r.status} for ${path}`); }
+    try{ const r=await fetch(u,{cache:'no-store'}); if(r.ok) return await r.json(); last=new Error(`HTTP ${r.status} for ${u.split('?')[0]}`); }
     catch(e){ last=e; }
   }
   throw last||new Error('Cannot fetch '+path);
@@ -125,11 +129,11 @@ async function scanRuns(){
     PICK.ds=PICK.ds||RUNS[0].dataset; drawPicker();
   }catch(err){
     console.error(err);
-    setStatus('❌ data/runs.json not found.','err');
+    setStatus('❌ Data/runs.json not found.','err');
     document.getElementById('extraInfo').innerHTML=`
       <div class="src-note"><b>Run the exporter first:</b><br>
-      <code>python export_results.py --src "path/to/DHARA Saved Resources" --out data</code><br>
-      then commit the <code>data/</code> folder. Opening index.html straight from disk needs a local server
+      <code>python export_results.py --src "path/to/DHARA Saved Resources" --out Data</code><br>
+      then commit the <code>Data/</code> folder. Opening index.html straight from disk needs a local server
       (<code>python -m http.server</code>).</div>
       <button class="retry-btn" onclick="scanRuns()">↺ Retry</button>`;
   }
@@ -700,7 +704,7 @@ function renderThreshold(){
    ══════════════════════════════════════════════════════════════ */
 let B_DS=null, B_BS=null, B_MET='B1';
 async function renderBench(){
-  let bm; try{ bm=await getBench(); }catch(e){ document.getElementById('benchNote').innerHTML='<b>data/benchmarks.json</b> was not found.'; return; }
+  let bm; try{ bm=await getBench(); }catch(e){ document.getElementById('benchNote').innerHTML='<b>Data/benchmarks.json</b> was not found.'; return; }
   if(!B_DS) B_DS=D.dataset;
   buildTabs('benchDsTabs',Object.keys(bm.datasets).map(k=>[k,bm.datasets[k].label]),k=>{B_DS=k;B_BS=null;renderBench();},B_DS);
   const dsb=bm.datasets[B_DS];
@@ -810,7 +814,7 @@ async function renderChecks(bm){
    ══════════════════════════════════════════════════════════════ */
 let H_DS='flickr8k', H_EX='best';
 async function renderHuman(){
-  let h; try{ h=await getHuman(); }catch(e){ document.getElementById('humanNote').innerHTML='<b>data/human_eval.json</b> was not found. Run the exporter with <code>--human</code>.'; return; }
+  let h; try{ h=await getHuman(); }catch(e){ document.getElementById('humanNote').innerHTML='<b>Data/human_eval.json</b> was not found. Run the exporter with <code>--human</code>.'; return; }
   const ds=Object.keys(h); const lab=k=>(BENCH&&BENCH.datasets[k]?BENCH.datasets[k].label:k);
   if(D&&h[D.dataset]) H_DS=D.dataset;
   document.getElementById('humanNote').innerHTML=`Hindi-proficient raters scored captions from the best batch configuration of each dataset on a 5-point Likert scale: <b>fluency</b> (does the Hindi read naturally?) and <b>adequacy</b> (does it describe the image?). ${ds.map(k=>`${lab(k)}: ${h[k].n_responses} ratings of ${h[k].n_images} images`).join(' · ')}. Only aggregates are published; rater names stay in the spreadsheet.`;
