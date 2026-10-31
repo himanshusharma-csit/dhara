@@ -1,0 +1,97 @@
+{
+  "_comment": "Written by hand from the DHARA manuscript (Tables 1-5). The DHARA rows of the live dashboard are always computed from data/runs; the 'paper' blocks below are used only to check that the exported data reproduce the manuscript.",
+  "paper_threshold": 5,
+  "metrics": [
+    {"key": "B1", "label": "BLEU-1"},
+    {"key": "B2", "label": "BLEU-2"},
+    {"key": "B3", "label": "BLEU-3"},
+    {"key": "B4", "label": "BLEU-4"},
+    {"key": "M",  "label": "METEOR"},
+    {"key": "C",  "label": "CIDEr"},
+    {"key": "R",  "label": "ROUGE-L"}
+  ],
+  "datasets": {
+    "pascal1k": {
+      "label": "PASCAL 1K-Hindi",
+      "table": "Table 3",
+      "val_table": "Table 1",
+      "split": {"train": 800, "val": 100, "test": 100, "captions_per_image": 5},
+      "origin": "Manually translated from PASCAL 1K (Rashtchian et al.) by Sharma et al.",
+      "methods": [
+        {"name": "GLoHiCap",     "authors": "Sharma et al.", "ref": "36", "approach": "CNN visual features with spatial object localisation, GloVe-Hindi embeddings, gated multimodal fusion and a bidirectional decoder",
+         "scores": {"B1": 19.65, "B2": 10.40, "B3": 7.80, "B4": 5.96}},
+        {"name": "ChitraVivran", "authors": "Sharma et al.", "ref": "37", "ref_note": "printed as [? ] in Tables 3 and 4 of the manuscript", "approach": "Ensemble of three CNN feature extractors with a multimodal fusion block",
+         "scores": {"B1": 28.23, "B2": 17.14, "B3": 10.32, "B4": 6.72}}
+      ],
+      "paper_dhara": {
+        "256": {"B1": 40.22, "B2": 17.37, "B3": 10.83, "B4": 7.07, "M": 20.47, "C": 13.71, "R": 25.783},
+        "128": {"B1": 38.98, "B2": 19.50, "B3": 11.39, "B4": 6.92, "M": 21.58, "C": 13.46, "R": 25.298},
+        "64":  {"B1": 34.73, "B2": 16.04, "B3": 8.69,  "B4": 5.45, "M": 21.40, "C": 11.93, "R": 23.424},
+        "32":  {"B1": 42.46, "B2": 20.20, "B3": 11.34, "B4": 7.97, "M": 22.56, "C": 15.86, "R": 26.843}
+      },
+      "paper_val_top3": {
+        "32":  [{"epoch": 26, "B1": 48.33, "B2": 26.81, "B3": 15.99, "B4": 10.74, "M": 28.55, "C": 21.32, "R": 31.58},
+                {"epoch": 19, "B1": 47.15, "B2": 25.24, "B3": 15.51, "B4": 10.44, "M": 27.43, "C": 21.10, "R": 30.17},
+                {"epoch": 28, "B1": 49.12, "B2": 26.37, "B3": 15.34, "B4": 10.17, "M": 27.21, "C": 21.72, "R": 31.86}],
+        "64":  [{"epoch": 12, "B1": 44.79, "B2": 23.16, "B3": 15.16, "B4": 10.60, "M": 24.68, "C": 19.02, "R": 28.26},
+                {"epoch": 18, "B1": 47.71, "B2": 23.14, "B3": 13.78, "B4": 10.12, "M": 23.92, "C": 19.48, "R": 29.76},
+                {"epoch": 13, "B1": 46.66, "B2": 23.03, "B3": 13.66, "B4": 9.36,  "M": 24.00, "C": 19.47, "R": 28.89}],
+        "128": [{"epoch": 30, "B1": 48.69, "B2": 25.31, "B3": 15.24, "B4": 9.74,  "M": 25.42, "C": 21.25, "R": 30.76},
+                {"epoch": 13, "B1": 46.02, "B2": 23.08, "B3": 13.96, "B4": 9.70,  "M": 23.36, "C": 18.93, "R": 28.79},
+                {"epoch": 34, "B1": 46.74, "B2": 23.42, "B3": 14.17, "B4": 9.30,  "M": 24.04, "C": 18.69, "R": 29.51}],
+        "256": [{"epoch": 25, "B1": 44.19, "B2": 21.84, "B3": 13.57, "B4": 9.70,  "M": 23.05, "C": 18.62, "R": 28.15},
+                {"epoch": 35, "B1": 44.96, "B2": 23.26, "B3": 14.10, "B4": 9.65,  "M": 24.04, "C": 19.92, "R": 28.69},
+                {"epoch": 23, "B1": 45.56, "B2": 22.92, "B3": 13.80, "B4": 9.61,  "M": 24.14, "C": 19.20, "R": 28.31}]
+      }
+    },
+    "flickr8k": {
+      "label": "Flickr 8K-Hindi",
+      "table": "Table 4",
+      "val_table": "Table 2",
+      "split": {"train": 6472, "captions_per_image": 5},
+      "origin": "Machine-translated from Flickr 8K (Hodosh et al.) with Google Translate, cleaned version (Rathi et al.)",
+      "methods": [
+        {"name": "Encoder-decoder",                "authors": "Rathi et al.",  "ref": "35", "approach": "CNN-LSTM encoder–decoder; introduced the Flickr 8K-Hindi corpus",
+         "scores": {"B1": 48.25, "B2": 29.72, "B3": 17.62, "B4": 12.0}},
+        {"name": "Encoder-decoder with Attention", "authors": "Mishra et al.", "ref": "25", "approach": "CNN-LSTM with attention over an intermediate multimodal space",
+         "scores": {"B1": 46.22, "B2": 28.14, "B3": 19.6, "B4": 11.38}},
+        {"name": "Transformer decoder",            "authors": "Mishra et al.", "ref": "26", "approach": "CNN visual encoder with a transformer decoder",
+         "scores": {"B1": 50.47, "B2": 33.18, "B3": 22.34, "B4": 16.0}},
+        {"name": "GLoHiCap",                       "authors": "Sharma et al.", "ref": "36", "approach": "CNN visual features with spatial object localisation, GloVe-Hindi embeddings, gated multimodal fusion and a bidirectional decoder",
+         "scores": {"B1": 24.18, "B2": 15.29, "B3": 10.11, "B4": 6.70}},
+        {"name": "ChitraVivran",                   "authors": "Sharma et al.", "ref": "37", "ref_note": "printed as [? ] in Tables 3 and 4 of the manuscript", "approach": "Ensemble of three CNN feature extractors with a multimodal fusion block",
+         "scores": {"B1": 45.19, "B2": 32.48, "B3": 26.37, "B4": 16.82}}
+      ],
+      "paper_dhara": {
+        "256": {"B1": 57.03, "B2": 36.11, "B3": 23.19, "B4": 16.03, "M": 35.24, "C": 30.43, "R": 42.331},
+        "128": {"B1": 56.90, "B2": 34.77, "B3": 21.81, "B4": 15.08, "M": 33.68, "C": 29.44, "R": 41.319},
+        "64":  {"B1": 54.39, "B2": 34.43, "B3": 21.94, "B4": 15.09, "M": 34.00, "C": 27.95, "R": 40.670},
+        "32":  {"B1": 54.35, "B2": 33.67, "B3": 20.86, "B4": 14.24, "M": 32.71, "C": 27.79, "R": 39.731}
+      },
+      "paper_val_top3": {
+        "32":  [{"epoch": 12, "B1": 53.55, "B2": 32.44, "B3": 20.48, "B4": 14.01, "M": 31.65, "C": 25.80, "R": 39.27},
+                {"epoch": 10, "B1": 53.81, "B2": 32.74, "B3": 20.69, "B4": 13.78, "M": 32.18, "C": 26.01, "R": 39.82},
+                {"epoch": 4,  "B1": 51.59, "B2": 30.95, "B3": 19.67, "B4": 13.74, "M": 31.01, "C": 25.53, "R": 38.56}],
+        "64":  [{"epoch": 9,  "B1": 54.94, "B2": 33.63, "B3": 21.60, "B4": 14.90, "M": 32.66, "C": 27.41, "R": 40.25},
+                {"epoch": 7,  "B1": 54.28, "B2": 32.84, "B3": 20.93, "B4": 14.51, "M": 31.96, "C": 27.10, "R": 40.09},
+                {"epoch": 10, "B1": 53.52, "B2": 32.65, "B3": 21.03, "B4": 14.45, "M": 32.76, "C": 26.94, "R": 39.66}],
+        "128": [{"epoch": 7,  "B1": 55.21, "B2": 34.02, "B3": 21.72, "B4": 15.19, "M": 32.75, "C": 28.54, "R": 40.59},
+                {"epoch": 16, "B1": 54.47, "B2": 33.20, "B3": 21.29, "B4": 15.05, "M": 32.67, "C": 27.52, "R": 40.10},
+                {"epoch": 5,  "B1": 54.33, "B2": 32.62, "B3": 20.92, "B4": 14.82, "M": 30.90, "C": 26.47, "R": 39.87}],
+        "256": [{"epoch": 21, "B1": 55.70, "B2": 34.69, "B3": 22.12, "B4": 15.31, "M": 33.72, "C": 28.58, "R": 41.35},
+                {"epoch": 23, "B1": 55.42, "B2": 34.36, "B3": 21.68, "B4": 15.09, "M": 33.21, "C": 28.27, "R": 40.99},
+                {"epoch": 33, "B1": 54.57, "B2": 33.37, "B3": 21.01, "B4": 14.58, "M": 33.18, "C": 27.45, "R": 40.77}]
+      }
+    }
+  },
+  "human_paper": {
+    "table": "Table 5",
+    "pascal1k": {"fluency": 3.09, "adequacy": 2.33},
+    "flickr8k": {"fluency": 3.56, "adequacy": 2.95}
+  },
+  "notes": [
+    "Baselines report BLEU-1 to BLEU-4 only; METEOR, CIDEr and ROUGE-L are not available for them.",
+    "DHARA ROUGE-L is taken from the manuscript because the training pipeline logged ROUGE as 0.",
+    "Jayaswal et al., Prashanth et al. and Choudhury et al. use other datasets or splits and are not directly comparable (Section 5.3)."
+  ]
+}
