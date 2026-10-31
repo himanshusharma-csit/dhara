@@ -13,7 +13,7 @@ const GH = {
   owner  : 'himanshusharma-csit',
   repo   : 'dhara',             // ← change if the repository has another name
   branch : 'main',
-  data   : 'data'               // folder written by export_results.py
+  data   : 'Data'               // folder written by export_results.py
 };
 const BATCHES = [32, 64, 128, 256];
 const PAPER_WT = 5;             // word threshold used for every result in the paper
