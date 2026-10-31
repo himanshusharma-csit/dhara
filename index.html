@@ -6,34 +6,36 @@
 <title>DHARA · Analytics Dashboard</title>
 <link rel="stylesheet" href="dashboard.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
-<!-- BATCH SELECTOR MODAL -->
+<!-- RUN SELECTOR MODAL -->
 <div class="overlay" id="overlay">
   <div class="modal">
-    <div class="modal-logo">🧠</div>
+    <div class="modal-logo">🪷</div>
     <h2 class="modal-title">DHARA Analytics Dashboard</h2>
-    <p class="modal-sub">Select a batch to visualise its results. All data is loaded live from GitHub.</p>
+    <p class="modal-sub">Dual-pretrained Hindi image captioning · CLIP ViT-B/32 + FastText-Hindi + transformer decoder. Pick a dataset, a word threshold and a batch size.</p>
 
     <div class="repo-strip">
       <span>🔗</span>
-      <span class="repo-name">himanshusharma-csit / dhara</span>
-      <span class="repo-folder">📁 SavedResources/</span>
+      <span class="repo-name" id="repoName">himanshusharma-csit / dhara</span>
+      <span class="repo-folder">📁 data/</span>
     </div>
 
     <div class="status-bar" id="statusBar">
       <div class="status-spinner" id="statusSpinner"></div>
-      <span id="statusText">Loading batches…</span>
+      <span id="statusText">Loading runs…</span>
     </div>
 
+    <div class="fetch-prog" id="fetchProgress"><div class="fetch-prog-bar" id="fetchProgressBar"></div></div>
+    <div class="ds-row" id="dsRow"></div>
+    <div class="wt-row" id="wtRow"></div>
     <div class="batch-list" id="batchList"></div>
     <div id="extraInfo"></div>
 
     <div class="modal-footer">
-      <span class="footer-note">Data fetched live from GitHub · No token required</span>
-      <button class="btn-load" id="btnLoad" onclick="loadSelectedBatch()" disabled>Open Dashboard →</button>
+      <span class="footer-note">● train · val · test · captions · evolution</span>
+      <button class="btn-load" id="btnLoad" onclick="loadSelectedRun()" disabled>Open Dashboard →</button>
     </div>
   </div>
 </div>
@@ -41,10 +43,10 @@
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <div class="sb-head">
-    <div class="sb-icon">🧠</div>
+    <div class="sb-icon">🪷</div>
     <div>
       <div class="sb-title">DHARA</div>
-      <div class="sb-sub">Analytics v3.0</div>
+      <div class="sb-sub">Analytics v2.0</div>
     </div>
   </div>
   <nav class="sb-nav">
@@ -54,8 +56,11 @@
     <button class="nav-btn" onclick="goPage('training',this)"><span class="nav-ico">📈</span>Training Logs</button>
     <button class="nav-btn" onclick="goPage('evaluation',this)"><span class="nav-ico">🎯</span>Evaluation</button>
     <button class="nav-btn" onclick="goPage('captions',this)"><span class="nav-ico">🔤</span>Captions</button>
-    <button class="nav-btn" onclick="goPage('advanced',this)"><span class="nav-ico">🔬</span>Advanced Analytics</button>
+    <button class="nav-btn" onclick="goPage('threshold',this)"><span class="nav-ico">🧮</span>Word Threshold</button>
     <div class="nav-grp">Project</div>
+    <button class="nav-btn" onclick="goPage('bench',this)"><span class="nav-ico">🏆</span>Benchmarks</button>
+    <button class="nav-btn" onclick="goPage('human',this)"><span class="nav-ico">🧑‍⚖️</span>Human Evaluation</button>
+    <button class="nav-btn" onclick="goPage('compare',this)"><span class="nav-ico">⚖️</span>Batch Comparison</button>
     <button class="nav-btn" onclick="goPage('insights',this)"><span class="nav-ico">💡</span>Insights</button>
   </nav>
   <div class="sb-foot">
@@ -69,22 +74,20 @@
   </div>
 </aside>
 
-<!-- SIDEBAR OVERLAY (mobile) -->
 <div class="sb-overlay" id="sbOverlay" onclick="closeSb()"></div>
 
-<!-- MAIN -->
 <main class="main">
   <div class="topbar">
     <div class="tb-left">
       <button class="hamburger" id="hamburger" onclick="toggleSb()"><span></span><span></span><span></span></button>
       <div>
         <div class="tb-title" id="pageTitle">Dashboard — Overview</div>
-        <div class="tb-sub" id="batchLabel">Loading…</div>
+        <div class="tb-sub" id="runLabel">Loading…</div>
       </div>
     </div>
     <div class="tb-right">
-      <div class="tb-badge"><span class="live-dot"></span><span id="cpBadge">Best Checkpoint</span></div>
-      <button class="tb-switch" onclick="document.getElementById('overlay').style.display='flex'">Switch Batch</button>
+      <div class="tb-badge"><span class="live-dot"></span><span id="cpBadge">Tested Checkpoint</span></div>
+      <button class="tb-switch" onclick="openModal()">Switch Run</button>
     </div>
   </div>
 
@@ -92,95 +95,188 @@
 
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
+      <div class="src-note" id="srcNote"></div>
       <div class="kpi-grid" id="kpiGrid"></div>
       <div class="g-7-5 mb">
-        <div class="card"><div class="sec-title"><h2>Training Loss Curve</h2><span class="pill blue">Full Training</span></div><canvas id="c-epochLoss" height="100"></canvas></div>
-        <div class="card"><div class="sec-title"><h2>Test vs Validation</h2><span class="pill green">Best Epoch</span></div><canvas id="c-barComp" height="100"></canvas></div>
+        <div class="card"><div class="sec-title"><h2>Training Loss</h2><span class="pill blue">Mean per batch · per epoch</span></div><div data-h style="position:relative;height:260px"><canvas id="c-loss"></canvas></div></div>
+        <div class="card"><div class="sec-title"><h2>Test Metrics</h2><span class="pill green">Tested checkpoint</span></div><div data-h style="position:relative;height:300px"><canvas id="c-testBar"></canvas></div></div>
       </div>
       <div class="g-2 mb">
         <div style="display:flex;flex-direction:column;gap:18px">
-          <div class="card"><div class="sec-title"><h2>BLEU-1 &amp; BLEU-2</h2><span class="pill blue">High-order</span></div><div style="flex:1;min-height:160px"><canvas id="c-bleu12" style="width:100%;height:100%"></canvas></div></div>
-          <div class="card"><div class="sec-title"><h2>BLEU-3 &amp; BLEU-4</h2><span class="pill orange">Low-order</span></div><div style="flex:1;min-height:160px"><canvas id="c-bleu34" style="width:100%;height:100%"></canvas></div></div>
+          <div class="card"><div class="sec-title"><h2>Validation BLEU-1 … BLEU-4</h2><span class="pill orange">Per epoch</span></div><div style="flex:1;min-height:170px"><canvas id="c-valBleu" style="width:100%;height:100%"></canvas></div></div>
+          <div class="card"><div class="sec-title"><h2>Validation METEOR &amp; CIDEr</h2><span class="pill purple">Per epoch</span></div><div style="flex:1;min-height:170px"><canvas id="c-valMC" style="width:100%;height:100%"></canvas></div></div>
         </div>
-        <div class="card" style="display:flex;flex-direction:column"><div class="sec-title"><h2>Performance Radar</h2><span class="pill purple">Test vs Val</span></div><div style="flex:1;min-height:380px"><canvas id="c-radar" style="width:100%;height:100%"></canvas></div></div>
+        <div class="card" style="display:flex;flex-direction:column"><div class="sec-title"><h2>Validation vs Test</h2><span class="pill purple">Same checkpoint · 0–100</span></div><div style="flex:1;min-height:380px"><canvas id="c-radar" style="width:100%;height:100%"></canvas></div></div>
       </div>
     </div>
 
     <!-- TRAINING -->
     <div class="page" id="page-training">
       <div class="g-7-5 mb">
-        <div class="card"><div class="sec-title"><h2>Epoch Loss Trajectory</h2><span class="pill blue">Full Training</span></div><canvas id="c-epochLossFull" height="95"></canvas></div>
-        <div class="card">
-          <div class="sec-title"><h2>Loss Convergence</h2></div>
-          <div id="lossBars" class="progs" style="margin-bottom:16px"></div>
-          <div class="sec-title" style="margin-bottom:8px"><h2 style="font-size:13px">Training Summary</h2></div>
-          <div id="trainStats"></div>
-        </div>
+        <div class="card"><div class="sec-title"><h2>Loss per Epoch</h2><span class="pill blue">Mean · min–max band over batches</span></div><div data-h style="position:relative;height:220px"><canvas id="c-lossBand"></canvas></div></div>
+        <div class="card"><div class="sec-title"><h2>Training Summary</h2></div><div id="trainStats"></div></div>
       </div>
       <div class="card mb">
-        <div class="sec-title"><h2>Batch-Level Loss Inspector</h2><span class="pill orange">Intra-Epoch</span></div>
+        <div class="sec-title"><h2>Batch-Level Loss Inspector</h2><span class="pill purple">Every optimisation step of one epoch</span></div>
         <div class="slider-row"><span class="slbl">Epoch:</span><input type="range" id="batchSlider" min="0" max="39" value="0"><span class="sval" id="batchSliderVal">Epoch 0</span></div>
-        <canvas id="c-batchLoss" height="85"></canvas>
+        <div data-h style="position:relative;height:300px"><canvas id="c-batchLoss"></canvas></div>
+        <div class="cap-note" id="batchNote" style="margin-top:6px"></div>
       </div>
-      <div class="card mb"><div class="sec-title"><h2>Caption Length Evolution</h2><span class="pill purple">Mean ± σ</span></div><canvas id="c-capLen" height="80"></canvas></div>
+      <div class="g-2 mb">
+        <div class="card"><div class="sec-title"><h2>Loss Convergence</h2><span class="pill orange">Relative drop per epoch</span></div><div data-h style="position:relative;height:260px"><canvas id="c-lossDelta"></canvas></div></div>
+        <div class="card"><div class="sec-title"><h2>Loss vs Validation BLEU-4</h2><span class="pill cyan">One point per epoch</span></div><div data-h style="position:relative;height:260px"><canvas id="c-lossB4"></canvas></div></div>
+      </div>
     </div>
 
     <!-- EVALUATION -->
     <div class="page" id="page-evaluation">
       <div class="card mb">
-        <div class="sec-title"><h2>Validation Metrics</h2><span class="pill blue">Per Epoch</span></div>
+        <div class="sec-title"><h2>Validation Metrics</h2><span class="pill blue">Per epoch</span></div>
         <div class="tabs" id="evalTabs">
-          <button class="tab active" data-pane="ep-bleu">BLEU 1–4</button>
-          <button class="tab" data-pane="ep-mc">METEOR &amp; CIDEr</button>
+          <button class="tab active" data-pane="ep-bleu">BLEU-1 … 4</button>
+          <button class="tab" data-pane="ep-meteor">METEOR</button>
+          <button class="tab" data-pane="ep-cider">CIDEr</button>
           <button class="tab" data-pane="ep-inspect">Epoch Inspector</button>
         </div>
-        <div id="ep-bleu">
-          <div class="g-2" style="margin-bottom:0">
-            <div><div class="sub-label">BLEU-1 &amp; BLEU-2</div><canvas id="c-bleuFull12" height="130"></canvas></div>
-            <div><div class="sub-label">BLEU-3 &amp; BLEU-4</div><canvas id="c-bleuFull34" height="130"></canvas></div>
-          </div>
-        </div>
-        <div id="ep-mc" style="display:none"><canvas id="c-meteorCider" height="100"></canvas></div>
+        <div id="ep-bleu"><div data-h style="position:relative;height:300px"><canvas id="c-evBleu"></canvas></div></div>
+        <div id="ep-meteor" style="display:none"><div data-h style="position:relative;height:300px"><canvas id="c-evMeteor"></canvas></div></div>
+        <div id="ep-cider" style="display:none"><div data-h style="position:relative;height:300px"><canvas id="c-evCider"></canvas></div></div>
         <div id="ep-inspect" style="display:none">
           <div class="slider-row"><span class="slbl">Epoch:</span><input type="range" id="evalSlider" min="0" max="39" value="0"><span class="sval" id="evalSliderVal">Epoch 0</span></div>
           <div class="chips" id="evalChips"></div>
         </div>
       </div>
       <div class="g-2 mb">
-        <div class="card"><div class="sec-title"><h2>Loss vs BLEU-4</h2><span class="pill orange">Scatter</span></div><canvas id="c-scatter" height="185"></canvas></div>
-        <div class="card"><div class="sec-title"><h2>Test Result Summary</h2><span class="pill green">Best Checkpoint</span></div><canvas id="c-testBar" height="185"></canvas></div>
+        <div class="card"><div class="sec-title"><h2>Test Results</h2><span class="pill green">Tested checkpoint</span></div><div style="overflow-x:auto"><table class="data-table compact" id="testTable"></table></div><div class="cap-note" id="testNote" style="margin-top:8px"></div></div>
+        <div class="card"><div class="sec-title"><h2>Validation vs Test</h2><span class="pill orange">Generalisation gap</span></div><div data-h style="position:relative;height:260px"><canvas id="c-valTest"></canvas></div></div>
       </div>
-      <div class="card mb"><div class="sec-title"><h2>Top 10 Epochs by BLEU-4</h2></div><div style="overflow-x:auto"><table class="data-table" id="top10Table"></table></div></div>
+      <div class="card mb"><div class="sec-title"><h2>Top 10 Epochs by Validation BLEU-4</h2><span class="pill blue">Ranking used in the paper</span><span class="pill green">⭐ tested checkpoint</span></div><div style="overflow-x:auto"><table class="data-table" id="top10Table"></table></div></div>
+      <div class="card mb"><div class="sec-title"><h2>Metric Correlation</h2><span class="pill cyan">Pearson r across epochs · validation</span></div><div style="overflow-x:auto" id="corrHeat"></div></div>
     </div>
 
     <!-- CAPTIONS -->
     <div class="page" id="page-captions">
       <div class="card mb">
-        <div class="sec-title"><h2>Caption Quality Evolution</h2><span class="pill blue">Across Epochs</span></div>
+        <div class="sec-title"><h2>One Image, Four Batch Sizes</h2><span class="pill green">Test set · tested checkpoints</span><span class="pill blue" id="sameSrc"></span></div>
+        <div class="cap-note" style="margin-bottom:12px">Captions for the same test image from every batch configuration of this dataset and threshold, as in the paper's qualitative figure. References are shown when the dataset file is available.</div>
+        <div class="cap-grid" id="sameGrid"></div>
+        <div style="text-align:center;margin-top:14px"><button class="retry-btn" onclick="shuffleSame()">↻ Other images</button></div>
+      </div>
+      <div class="card mb">
+        <div class="sec-title"><h2>Generated Hindi Captions</h2><span class="pill purple">Test set · this run</span><span class="pill blue" id="capCount"></span></div>
+        <div class="search-row">
+          <input type="text" id="capSearch" placeholder="Search a word (e.g. कुत्ता) or an image ID…" oninput="drawCaptionGrid(true)">
+          <div class="tabs" id="capSort" style="margin-bottom:0"></div>
+        </div>
+        <div class="cap-legend"><span class="cap-note">Red: a word repeated back-to-back (a decoding loop).</span></div>
+        <div class="cap-grid" id="capGrid"></div>
+        <div style="text-align:center;margin-top:14px"><button class="retry-btn" id="moreCaps" onclick="moreCaptions()">Show more ↓</button></div>
+      </div>
+      <div class="card mb">
+        <div class="sec-title"><h2>Caption Evolution</h2><span class="pill blue">Validation image · every epoch</span></div>
         <div class="evo-tabs" id="evoTabs"></div>
         <div id="evoTimeline"></div>
       </div>
-      <div class="card mb"><div class="sec-title"><h2>Generated Hindi Captions</h2><span class="pill green">Test Set · Best Checkpoint</span></div><div class="cap-grid" id="capGrid"></div></div>
-      <div class="card mb"><div class="sec-title"><h2>Caption Length Distribution</h2><span class="pill purple">Key Epochs</span></div><canvas id="c-capDist" height="90"></canvas></div>
+      <div class="g-2 mb">
+        <div class="card"><div class="sec-title"><h2>Caption Length</h2><span class="pill purple">Test · generated vs references</span></div><div data-h style="position:relative;height:260px"><canvas id="c-capDist"></canvas></div></div>
+        <div class="card"><div class="sec-title"><h2>Most Frequent Words</h2><span class="pill orange">Test captions</span></div><div data-h style="position:relative;height:260px"><canvas id="c-topWords"></canvas></div></div>
+      </div>
+      <div class="card mb">
+        <div class="sec-title"><h2>Caption Quality per Epoch</h2><span class="pill red">Validation captions</span></div>
+        <div class="tabs" id="qualTabs"></div>
+        <div data-h style="position:relative;height:300px"><canvas id="c-capQual"></canvas></div>
+        <div class="cap-note" style="margin-top:8px">Word repeat: a word followed by itself (“रंग रंग”). Phrase repeat: a word pair that occurs twice in one caption (“एक इमारत के सामने एक इमारत के सामने”). Distinct-n: unique n-grams as a share of all n-grams. Unique: captions not produced for any other image.</div>
+      </div>
     </div>
 
-    <!-- ADVANCED -->
-    <div class="page" id="page-advanced">
-      <div class="g-2 mb">
-        <div class="card"><div class="sec-title"><h2>Metric Correlation Heatmap</h2><span class="pill blue">Pearson r</span></div><canvas id="c-corr" height="210"></canvas></div>
-        <div class="card"><div class="sec-title"><h2>Caption Length KDE</h2><span class="pill purple">Kernel Density</span></div><canvas id="c-kde" height="210"></canvas></div>
+    <!-- WORD THRESHOLD -->
+    <div class="page" id="page-threshold">
+      <div class="src-note" id="wtNote"></div>
+      <div id="wtBody">
+        <div class="kpi-grid" id="wtKpi"></div>
+        <div class="card mb">
+          <div class="sec-title"><h2>Test Score vs Word Threshold</h2><span class="pill purple">Flickr 8K-Hindi · one line per batch size</span></div>
+          <div class="tabs" id="wtTabs"></div>
+          <div data-h style="position:relative;height:300px"><canvas id="c-wtLine"></canvas></div>
+        </div>
+        <div class="g-2 mb">
+          <div class="card"><div class="sec-title"><h2>Threshold × Batch Size</h2><span class="pill orange" id="wtHeatLbl">Test BLEU-4</span></div><div style="overflow-x:auto" id="wtHeat"></div></div>
+          <div class="card"><div class="sec-title"><h2>Vocabulary Size</h2><span class="pill cyan">Words kept at each threshold</span></div><div data-h style="position:relative;height:260px"><canvas id="c-vocab"></canvas></div></div>
+        </div>
+        <div class="g-2 mb">
+          <div class="card"><div class="sec-title"><h2>Validation BLEU-4 by Threshold</h2><span class="pill blue" id="wtValLbl">This batch size</span></div><div data-h style="position:relative;height:260px"><canvas id="c-wtVal"></canvas></div></div>
+          <div class="card"><div class="sec-title"><h2>Training Loss by Threshold</h2><span class="pill blue" id="wtLossLbl">This batch size</span></div><div data-h style="position:relative;height:260px"><canvas id="c-wtLoss"></canvas></div></div>
+        </div>
+        <div class="card mb"><div class="sec-title"><h2>All Flickr 8K-Hindi Runs</h2><span class="pill green">Test · tested checkpoint</span></div><div style="overflow-x:auto"><table class="data-table compact" id="wtTable"></table></div></div>
+      </div>
+    </div>
+
+    <!-- BENCHMARKS -->
+    <div class="page" id="page-bench">
+      <div class="src-note" id="benchNote">Loading benchmark results…</div>
+      <div class="card mb" style="padding:14px 20px">
+        <div class="sec-title" style="margin-bottom:10px"><h2>Comparison Setup</h2><span class="pill purple">Dataset · DHARA batch size</span></div>
+        <div class="tabs" id="benchDsTabs" style="margin-bottom:8px"></div>
+        <div class="tabs" id="benchBatchTabs" style="margin-bottom:0"></div>
+      </div>
+      <div class="kpi-grid" id="benchKpi"></div>
+      <div class="card mb">
+        <div class="sec-title"><h2>Comparison with Published Results</h2><span class="pill blue" id="benchTblLbl"></span></div>
+        <div style="overflow-x:auto"><table class="data-table compact" id="benchTable"></table></div>
+        <ul class="note-list" id="benchNotes"></ul>
       </div>
       <div class="g-2 mb">
-        <div class="card"><div class="sec-title"><h2>BLEU-4 Distribution</h2><span class="pill orange">Q1/Q3 Bands</span></div><canvas id="c-bleu4dist" height="200"></canvas></div>
-        <div class="card"><div class="sec-title"><h2>Loss vs Metrics Scatter</h2><span class="pill green">Multi-metric</span></div><canvas id="c-multiScatter" height="200"></canvas></div>
+        <div class="card">
+          <div class="sec-title"><h2>Metric by Method</h2><span class="pill orange">Sorted · DHARA ★</span></div>
+          <div class="tabs" id="benchMetricTabs"></div>
+          <div style="position:relative;height:330px"><canvas id="c-benchBar"></canvas></div>
+        </div>
+        <div class="card"><div class="sec-title"><h2>Margin over Best Published</h2><span class="pill green">DHARA − best baseline</span></div><div data-h style="position:relative;height:300px"><canvas id="c-benchGain"></canvas></div></div>
       </div>
-      <div class="card mb"><div class="sec-title"><h2>Epoch × Metric Heatmap</h2><span class="pill cyan">Normalised</span></div><div style="overflow-x:auto" id="heatmapWrap"></div></div>
+      <div class="card mb"><div class="sec-title"><h2>Compared Methods</h2><span class="pill cyan">References as in the paper</span></div><div style="overflow-x:auto"><table class="data-table compact" id="benchMethods"></table></div></div>
+      <div class="card mb"><div class="sec-title"><h2>Manuscript Consistency Check</h2><span class="pill red">Tables 1–5 vs exported data</span></div><ul class="check-list" id="checkList"></ul></div>
+    </div>
+
+    <!-- HUMAN EVALUATION -->
+    <div class="page" id="page-human">
+      <div class="src-note" id="humanNote">Loading human evaluation…</div>
+      <div class="kpi-grid" id="humanKpi"></div>
+      <div class="g-2 mb">
+        <div class="card"><div class="sec-title"><h2>Fluency Ratings</h2><span class="pill blue">5-point Likert · share of ratings</span></div><div data-h style="position:relative;height:260px"><canvas id="c-hFlu"></canvas></div></div>
+        <div class="card"><div class="sec-title"><h2>Adequacy Ratings</h2><span class="pill green">5-point Likert · share of ratings</span></div><div data-h style="position:relative;height:260px"><canvas id="c-hAde"></canvas></div></div>
+      </div>
+      <div class="g-2 mb">
+        <div class="card"><div class="sec-title"><h2>Fluency × Adequacy</h2><span class="pill purple">Bubble = number of ratings</span></div><div class="tabs" id="hJointTabs"></div><div data-h style="position:relative;height:260px"><canvas id="c-hJoint"></canvas></div></div>
+        <div class="card"><div class="sec-title"><h2>Per-Image Mean Scores</h2><span class="pill orange">Each point is one captioned image</span></div><div data-h style="position:relative;height:300px"><canvas id="c-hImg"></canvas></div></div>
+      </div>
+      <div class="card mb">
+        <div class="sec-title"><h2>Highest and Lowest Rated Captions</h2><span class="pill cyan">Mean of all raters</span></div>
+        <div class="tabs" id="hExTabs"></div>
+        <div class="cap-grid" id="hExGrid"></div>
+      </div>
+    </div>
+
+    <!-- BATCH COMPARISON -->
+    <div class="page" id="page-compare">
+      <div class="src-note" id="cmpNote">Loading all batches…</div>
+      <div class="card mb"><div class="sec-title"><h2>Batch Summary</h2><span class="pill blue" id="cmpTblLbl"></span></div><div style="overflow-x:auto"><table class="data-table compact" id="cmpTable"></table></div></div>
+      <div class="g-2 mb">
+        <div class="card"><div class="sec-title"><h2>Average Training Loss</h2><span class="pill orange">Paper Fig. 4</span></div><div data-h style="position:relative;height:260px"><canvas id="c-cmpLoss"></canvas></div></div>
+        <div class="card"><div class="sec-title"><h2>Updates vs Test BLEU-4</h2><span class="pill cyan">Optimisation steps in 40 epochs</span></div><div data-h style="position:relative;height:260px"><canvas id="c-cmpSteps"></canvas></div></div>
+      </div>
+      <div class="card mb">
+        <div class="sec-title"><h2>Validation Metric per Epoch</h2><span class="pill purple" id="cmpFigLbl">Paper Figs. 6–11</span></div>
+        <div class="tabs" id="cmpTabs"></div>
+        <div data-h style="position:relative;height:300px"><canvas id="c-cmpVal"></canvas></div>
+      </div>
+      <div class="card mb"><div class="sec-title"><h2>Test Scores by Batch Size</h2><span class="pill green">Tested checkpoints</span></div><div data-h style="position:relative;height:300px"><canvas id="c-cmpTest"></canvas></div></div>
     </div>
 
     <!-- INSIGHTS -->
     <div class="page" id="page-insights">
       <div class="insight-grid" id="insightGrid"></div>
-      <div class="card mb"><div class="sec-title"><h2>Model Architecture</h2><span class="pill blue">DHARA Framework</span></div><div id="archTable"></div></div>
+      <div class="card mb"><div class="sec-title"><h2>DHARA Architecture</h2><span class="pill blue">Paper Section 3</span></div><div class="arch-wrap" id="archSvg"></div></div>
+      <div class="card mb"><div class="sec-title"><h2>Model &amp; Run Configuration</h2><span class="pill blue">This run</span></div><div id="archTable"></div></div>
     </div>
 
   </div>
